@@ -33,6 +33,8 @@ def http_json(url, payload=None, headers=None, timeout=60):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method="POST" if data else "GET")
     req.add_header("Content-Type", "application/json")
+    # UA default "Python-urllib/x" diblokir Cloudflare Browser Integrity Check (error 1010)
+    req.add_header("User-Agent", f"aw-hub-agent/{VERSION}")
     for k, v in (headers or {}).items():
         req.add_header(k, v)
     with urllib.request.urlopen(req, timeout=timeout) as r:
