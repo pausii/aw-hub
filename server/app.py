@@ -166,11 +166,11 @@ def load_categories():
     rules, meta = [], {}
     for i, c in enumerate(raw.get("categories", [])):
         name = c["name"]
-        meta[name] = {"slot": c.get("slot"), "color": c.get("color"), "order": i}
+        meta[name] = {"slot": c.get("slot"), "color": c.get("color"), "order": i, "name_en": c.get("name_en")}
         if c.get("regex"):
             flags = re.IGNORECASE if c.get("ignore_case", True) else 0
             rules.append((name, re.compile(c["regex"], flags), c.get("match", "both")))
-    meta.setdefault(UNCATEGORIZED, {"slot": None, "color": None, "order": 999})
+    meta.setdefault(UNCATEGORIZED, {"slot": None, "color": None, "order": 999, "name_en": "Other"})
     work = {**DEFAULT_WORK, **raw.get("work", {})}
     work["categories"] = set(work["categories"])
     _cat_state.update(mtime=mtime, rules=rules, meta=meta, work=work)
@@ -514,7 +514,8 @@ def config(request: Request):
     return {"tz": str(TZ), "day_start_hour": DAY_START_HOUR,
             "today": logical_day(time.time()).isoformat(), "user": current_user(request),
             "telegram": report.configured(),
-            "report_schedule": {"weekday": report.REPORT_WEEKDAY, "hour": report.REPORT_HOUR}}
+            "report_schedule": {"weekday": report.REPORT_WEEKDAY, "hour": report.REPORT_HOUR},
+            "report_lang": report.REPORT_LANG}
 
 
 # ---------------------------------------------------------------- ringkasan mingguan (Telegram)
@@ -531,21 +532,26 @@ def meta_set(key: str, value: str):
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
 
 
-def weekly_report_text(week_from: date | None = None) -> tuple[str, date, date]:
+def cat_label(name: str, lang: str) -> str:
+    return (_cat_state["meta"].get(name, {}).get("name_en") or name) if lang == "en" else name
+
+
+def weekly_report_text(week_from: date | None = None, lang: str = report.REPORT_LANG) -> tuple[str, date, date]:
     if week_from is None:
         week_from, week_to = report.last_full_week(logical_day(time.time()))
     else:
         week_from -= timedelta(days=week_from.weekday())
         week_to = week_from + timedelta(days=6)
     st = stats(d_from=week_from, d_to=week_to, group="day", devices=None, top=5)
-    return report.build_text(st, week_from, week_to), week_from, week_to
+    return (report.build_text(st, week_from, week_to, lang, lambda n: cat_label(n, lang)),
+            week_from, week_to)
 
 
 @app.get("/api/report/preview", dependencies=[Depends(require_dashboard)])
-def report_preview(week: date | None = None):
-    text, a, b = weekly_report_text(week)
+def report_preview(week: date | None = None, lang: str = Query(report.REPORT_LANG, pattern="^(en|id)$")):
+    text, a, b = weekly_report_text(week, lang)
     return {"from": a, "to": b, "text": text, "telegram": report.configured(),
-            "last_sent_week": meta_get("report_last_week")}
+            "report_lang": report.REPORT_LANG, "last_sent_week": meta_get("report_last_week")}
 
 
 @app.post("/api/report/send", dependencies=[Depends(require_dashboard)])

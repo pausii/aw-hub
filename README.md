@@ -136,6 +136,12 @@ Server akan mengirim ringkasan minggu lalu (Senin–Minggu) setiap **Senin 07:00
 jadi restart server tidak menyebabkan laporan terkirim dua kali. Dari kartu *Kerja vs pribadi* di dashboard,
 laporan bisa **dipratinjau** atau **dikirim sekarang**.
 
+## 6. Bahasa (EN / ID)
+
+Dashboard dan halaman login tersedia dalam bahasa Inggris (default) dan Indonesia. Ganti lewat tombol 🌐 di pojok kanan atas.
+Pilihan bahasa disimpan per browser. Nama kategori memakai `name_en` di `config/categories.json` saat bahasa Inggris aktif.
+Bahasa ringkasan Telegram diatur terpisah lewat `AW_HUB_REPORT_LANG` (`en` | `id`).
+
 ## Catatan keamanan
 
 - Dashboard terbuka ke internet dan dilindungi login dengan batas percobaan. Pakai password panjang.
