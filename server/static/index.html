@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AW Hub</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --wash: rgba(11,11,11,0.05);
+  --good: #006300;
+  --bad: #b3261e;
+  /* perangkat: satu hue (biru), dibedakan terang-gelap */
+  --dev-1: #256abf; --dev-2: #86b6ef; --dev-3: #104281; --dev-4: #b7d3f6;
+  /* kategori: slot palet tetap */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --s-none: #b5b3ab;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+    --good: #0ca30c; --bad: #e66767;
+    --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+  --good: #0ca30c; --bad: #e66767;
+  --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 16px; }
+h1 { font-size: 20px; margin: 0; font-weight: 650; }
+h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.sync { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; color: var(--ink-2); font-size: 12px; }
+.sync b { color: var(--ink); font-weight: 600; }
+
+.filters {
+  display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
+  padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 16px; position: sticky; top: 0; z-index: 5;
+}
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.seg button {
+  border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px;
+  padding: 5px 10px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { background: var(--wash); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.range { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
+input[type=date] {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px;
+  border: 1px solid var(--border); background: transparent; color: var(--ink); border-radius: 999px;
+  padding: 4px 10px; cursor: pointer;
+}
+.chip[aria-pressed="false"] { color: var(--muted); }
+.chip[aria-pressed="false"] .sw { opacity: .25; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.spacer { flex: 1; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  min-width: 0;
+}
+.card-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.card-h .sub { font-size: 12px; }
+.card-h .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
+@media (max-width: 900px) { .c8, .c6, .c4 { grid-column: span 12; } }
+
+.kpis { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+  .kpi.hero .value { font-size: 40px; }
+  .card-h .right { margin-left: 0; }
+  .bar-row { grid-template-columns: minmax(80px, 110px) 1fr 96px; }
+}
+.kpi .label { color: var(--ink-2); font-size: 13px; }
+.kpi .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+.kpi.hero .value { font-size: 48px; line-height: 1.1; }
+.kpi .delta { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+.kpi .delta .up, .kpi .delta .down { color: var(--ink); font-weight: 600; }
+.split { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+.split span { display: inline-flex; align-items: center; gap: 6px; }
+.split b { color: var(--ink); font-weight: 600; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+svg { display: block; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg .val { fill: var(--ink-2); font-size: 11px; }
+
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 150px) 1fr 104px; gap: 10px; align-items: center; font-size: 13px; }
+.bar-row .name { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bar-row .track { height: 12px; }
+.bar-row .fill { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-row .num { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 6px; border-bottom: 1px solid var(--grid); }
+td { padding: 6px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .t { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+td .m { color: var(--muted); font-size: 12px; }
+.inbar { height: 4px; border-radius: 2px; background: var(--ink-2); opacity: .35; margin-top: 4px; }
+tr:last-child td { border-bottom: 0; }
+
+.btn {
+  font: inherit; font-size: 13px; border: 1px solid var(--border); background: transparent; color: var(--ink);
+  border-radius: 6px; padding: 3px 9px; cursor: pointer;
+}
+.btn:hover { background: var(--wash); }
+.link { font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit; }
+
+#tip {
+  position: fixed; pointer-events: none; z-index: 20; max-width: 340px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+  opacity: 0; transition: opacity .08s;
+}
+#tip .tt { font-weight: 600; margin-bottom: 4px; }
+#tip .row { display: flex; gap: 12px; align-items: center; }
+#tip .row b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+#tip .mt { color: var(--ink-2); word-break: break-word; }
+.empty { color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; }
+.err { color: var(--bad); padding: 12px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AW Hub</h1>
+    <span class="sub" id="rangeLabel"></span>
+    <div class="sync" id="sync"></div>
+  </header>
+
+  <div class="filters" role="toolbar" aria-label="Filter">
+    <div class="seg" id="presets"></div>
+    <div class="range">
+      <input type="date" id="from" aria-label="Dari tanggal"> –
+      <input type="date" id="to" aria-label="Sampai tanggal">
+    </div>
+    <div class="seg" id="group" aria-label="Kelompokkan per"></div>
+    <div class="spacer"></div>
+    <div id="devChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+
+  <div id="error" class="err hidden"></div>
+
+  <div class="grid">
+    <div class="c12 kpis" id="kpis"></div>
+
+    <section class="card c12">
+      <div class="card-h">
+        <h2>Waktu aktif</h2><span class="sub" id="seriesSub"></span>
+        <div class="right"><button class="link" id="seriesToggle">Lihat tabel</button></div>
+      </div>
+      <div id="seriesChart"></div>
+      <div id="seriesTable" class="hidden"></div>
+      <div class="legend" id="seriesLegend"></div>
+    </section>
+
+    <section class="card c12">
+      <div class="card-h">
+        <h2>Timeline 24 jam</h2><span class="sub" id="tlSub"></span>
+        <div class="right">
+          <button class="btn" id="tlPrev" aria-label="Hari sebelumnya">‹</button>
+          <input type="date" id="tlDay" aria-label="Tanggal timeline">
+          <button class="btn" id="tlNext" aria-label="Hari berikutnya">›</button>
+        </div>
+      </div>
+      <div id="timeline"></div>
+      <div class="legend" id="catLegend"></div>
+    </section>
+
+    <section class="card c6">
+      <div class="card-h"><h2>Kategori</h2><span class="sub">bagian dari total waktu aktif</span></div>
+      <div id="categories" class="bars"></div>
+    </section>
+
+    <section class="card c6">
+      <div class="card-h"><h2>Pola jam</h2><span class="sub">total per jam dalam rentang</span></div>
+      <div id="hours"></div>
+    </section>
+
+    <section class="card c6">
+      <div class="card-h"><h2>Aplikasi teratas</h2></div>
+      <div id="apps"></div>
+    </section>
+
+    <section class="card c6">
+      <div class="card-h"><h2>Judul window teratas</h2></div>
+      <div id="titles"></div>
+    </section>
+  </div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const PRESETS = [
+  ["today", "Hari ini"], ["yesterday", "Kemarin"], ["week", "Minggu ini"], ["7d", "7 hari"],
+  ["month", "Bulan ini"], ["lastmonth", "Bulan lalu"], ["30d", "30 hari"], ["90d", "90 hari"],
+];
+const GROUPS = [["day", "Harian"], ["week", "Mingguan"], ["month", "Bulanan"]];
+
+const S = { from: null, to: null, group: "day", preset: "7d", hidden: new Set(), tlDay: null,
+            today: null, devices: [], cats: [], stats: null, tl: null, dayStartHour: 4 };
+
+// ---------- util tanggal (string YYYY-MM-DD, aritmetika di UTC agar bebas zona waktu browser)
+const toD = (s) => new Date(s + "T00:00:00Z");
+const toS = (d) => d.toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = toD(s); d.setUTCDate(d.getUTCDate() + n); return toS(d); };
+const diffDays = (a, b) => Math.round((toD(b) - toD(a)) / 864e5);
+function presetRange(p, today) {
+  const d = toD(today);
+  switch (p) {
+    case "today": return [today, today];
+    case "yesterday": return [addDays(today, -1), addDays(today, -1)];
+    case "week": return [addDays(today, -((d.getUTCDay() + 6) % 7)), today];
+    case "7d": return [addDays(today, -6), today];
+    case "30d": return [addDays(today, -29), today];
+    case "90d": return [addDays(today, -89), today];
+    case "month": return [today.slice(0, 8) + "01", today];
+    case "lastmonth": {
+      const first = today.slice(0, 8) + "01", end = addDays(first, -1);
+      return [end.slice(0, 8) + "01", end];
+    }
+  }
+}
+function autoGroup(from, to) {
+  const n = diffDays(from, to) + 1;
+  return n > 120 ? "month" : n > 45 ? "week" : "day";
+}
+function fmtDate(s, withYear) {
+  const d = toD(s);
+  return `${DAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}${withYear ? " " + d.getUTCFullYear() : ""}`;
+}
+function periodLabel(k, group, short) {
+  const d = toD(k);
+  if (group === "month") return `${MONTHS[d.getUTCMonth()]}${short ? "" : " " + d.getUTCFullYear()}`;
+  if (group === "week") return `${short ? "" : "Minggu "}${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  return short ? `${d.getUTCDate()}/${d.getUTCMonth() + 1}` : fmtDate(k);
+}
+function fmtDur(sec) {
+  sec = Math.round(sec || 0);
+  if (sec < 60) return sec > 0 ? "<1m" : "0m";
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h ? `${h}j ${String(m).padStart(2, "0")}m` : `${m}m`;
+}
+const fmtClock = (ts) => new Date(ts * 1000).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: S.tz });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// warna mengikuti entitas, bukan peringkat: perangkat diurutkan nama, kategori via slot
+const devColor = (name) => `var(--dev-${(S.devices.findIndex((d) => d.name === name) % 4) + 1})`;
+function catColor(name) {
+  const c = S.cats.find((x) => x.name === name);
+  if (c && c.color) return c.color;
+  return c && c.slot ? `var(--s${c.slot})` : "var(--s-none)";
+}
+const visibleDevices = () => S.devices.map((d) => d.name).filter((n) => !S.hidden.has(n));
+
+// ---------- tooltip
+const tip = $("#tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect(), pad = 14;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.style.opacity = 0; };
+const tipRow = (sw, label, val) => `<div class="row"><span class="sw" style="background:${sw}"></span>${esc(label)}<b>${val}</b></div>`;
+
+// ---------- API
+async function api(path) {
+  // origin, bukan URL relatif: URL berkredensial (user:pass@host) ditolak fetch
+  const r = await fetch(location.origin + path, { credentials: "same-origin" });
+  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+  return r.json();
+}
+
+// ---------- state <-> URL hash
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.get("from") && p.get("to")) { S.from = p.get("from"); S.to = p.get("to"); S.preset = p.get("preset") || null; }
+  if (p.get("group")) S.group = p.get("group");
+  if (p.get("hide")) S.hidden = new Set(p.get("hide").split(","));
+  if (p.get("day")) S.tlDay = p.get("day");
+}
+function writeHash() {
+  const p = new URLSearchParams({ from: S.from, to: S.to, group: S.group });
+  if (S.preset) p.set("preset", S.preset);
+  if (S.hidden.size) p.set("hide", [...S.hidden].join(","));
+  if (S.tlDay) p.set("day", S.tlDay);
+  history.replaceState(null, "", "#" + p);
+}
+
+// ---------- kontrol filter
+function renderControls() {
+  $("#presets").innerHTML = PRESETS.map(([k, l]) =>
+    `<button data-p="${k}" aria-pressed="${S.preset === k}">${l}</button>`).join("");
+  $("#group").innerHTML = GROUPS.map(([k, l]) =>
+    `<button data-g="${k}" aria-pressed="${S.group === k}">${l}</button>`).join("");
+  $("#from").value = S.from; $("#to").value = S.to;
+  $("#from").max = $("#to").max = S.today;
+  $("#devChips").innerHTML = S.devices.map((d) =>
+    `<button class="chip" data-d="${esc(d.name)}" aria-pressed="${!S.hidden.has(d.name)}">
+       <span class="sw" style="background:${devColor(d.name)}"></span>${esc(d.name)}</button>`).join("");
+  $("#rangeLabel").textContent = S.from === S.to ? fmtDate(S.from, true) : `${fmtDate(S.from)} – ${fmtDate(S.to, true)}`;
+}
+$("#presets").addEventListener("click", (e) => {
+  const p = e.target.closest("button")?.dataset.p; if (!p) return;
+  S.preset = p; [S.from, S.to] = presetRange(p, S.today); S.group = autoGroup(S.from, S.to);
+  S.tlDay = null; load();
+});
+$("#group").addEventListener("click", (e) => {
+  const g = e.target.closest("button")?.dataset.g; if (!g) return;
+  S.group = g; load();
+});
+for (const id of ["#from", "#to"]) $(id).addEventListener("change", () => {
+  let f = $("#from").value, t = $("#to").value; if (!f || !t) return;
+  if (t < f) [f, t] = [t, f];
+  S.from = f; S.to = t; S.preset = null; S.group = autoGroup(f, t); S.tlDay = null; load();
+});
+$("#devChips").addEventListener("click", (e) => {
+  const d = e.target.closest("button")?.dataset.d; if (!d) return;
+  if (S.hidden.has(d)) S.hidden.delete(d);
+  else if (visibleDevices().length > 1) S.hidden.add(d);
+  load();
+});
+$("#seriesToggle").addEventListener("click", () => {
+  const t = $("#seriesTable").classList.toggle("hidden");
+  $("#seriesChart").classList.toggle("hidden", !t);
+  $("#seriesToggle").textContent = t ? "Lihat tabel" : "Lihat grafik";
+});
+$("#tlDay").addEventListener("change", () => { if ($("#tlDay").value) { S.tlDay = $("#tlDay").value; loadTimeline(); } });
+$("#tlPrev").addEventListener("click", () => { S.tlDay = addDays(S.tlDay, -1); loadTimeline(); });
+$("#tlNext").addEventListener("click", () => { if (S.tlDay < S.today) { S.tlDay = addDays(S.tlDay, 1); loadTimeline(); } });
+
+// ---------- KPI
+function renderKpis(st) {
+  const delta = st.prev_total ? (st.total - st.prev_total) / st.prev_total : null;
+  const deltaHtml = delta === null ? `<span>Periode sebelumnya tidak ada data</span>`
+    : `<span class="${delta >= 0 ? "up" : "down"}">${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta * 100).toFixed(0)}%</span>
+       vs ${fmtDate(st.prev_range.from)} – ${fmtDate(st.prev_range.to)} (${fmtDur(st.prev_total)})`;
+  const devs = visibleDevices();
+  const split = devs.map((d) => `<span><i class="sw" style="background:${devColor(d)}"></i>${esc(d)}<b>${fmtDur(st.per_device[d])}</b></span>`).join("");
+  const [bd, bsec] = st.busiest_day;
+  $("#kpis").innerHTML = `
+    <div class="card kpi hero"><div class="label">Total waktu aktif</div>
+      <div class="value">${fmtDur(st.total)}</div><div class="delta">${deltaHtml}</div></div>
+    <div class="card kpi"><div class="label">Rata-rata per hari aktif</div>
+      <div class="value">${fmtDur(st.avg_per_active_day)}</div>
+      <div class="delta">${st.active_days} dari ${st.range.days} hari aktif</div></div>
+    <div class="card kpi"><div class="label">Per perangkat</div><div class="split">${split}</div></div>
+    <div class="card kpi"><div class="label">Hari tersibuk</div>
+      <div class="value">${bd ? fmtDur(bsec) : "–"}</div>
+      <div class="delta">${bd ? fmtDate(bd, true) : ""}</div></div>`;
+}
+
+// ---------- stacked columns (dipakai grafik periode & pola jam)
+function niceStep(maxH) {
+  for (const s of [0.25, 0.5, 1, 2, 4, 5, 10, 20, 25, 50, 100, 200, 250, 500]) if (maxH / s <= 5) return s;
+  return 1000;
+}
+function roundedTop(x, y, w, h, r) {
+  r = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+function stackedColumns(el, rows, { labelFn, tipTitle, height = 220 }) {
+  const devs = visibleDevices();
+  const W = Math.max(280, el.clientWidth), H = height, m = { l: 34, r: 4, t: 10, b: 24 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const totals = rows.map((r) => devs.reduce((a, d) => a + (r.per_device[d] || 0), 0));
+  const maxH = Math.max(1 / 60, ...totals.map((t) => t / 3600));
+  const step = niceStep(maxH), top = Math.ceil(maxH / step) * step;
+  const y = (h) => m.t + ih - (h / top) * ih;
+  const band = iw / rows.length, bw = Math.min(24, Math.max(2, band * 0.7)), GAP = 2;
+  const every = Math.ceil(rows.length / Math.max(1, Math.floor(iw / 46)));
+  let g = "";
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${v ? "--grid" : "--axis"})"/>`;
+    g += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(2)}j</text>`;
+  }
+  let marks = "", hits = "";
+  rows.forEach((r, i) => {
+    const cx = m.l + band * i + band / 2, x = cx - bw / 2;
+    let acc = 0;
+    const present = devs.filter((d) => (r.per_device[d] || 0) > 0);
+    present.forEach((d, j) => {
+      const h0 = acc / 3600, h1 = (acc += r.per_device[d]) / 3600;
+      let yTop = y(h1), yBot = y(h0) - (j ? GAP : 0), hh = yBot - yTop;
+      if (hh <= 0) return;
+      marks += j === present.length - 1
+        ? `<path d="${roundedTop(x, yTop, bw, hh, 4)}" fill="${devColor(d)}"/>`
+        : `<rect x="${x}" y="${yTop}" width="${bw}" height="${hh}" fill="${devColor(d)}"/>`;
+    });
+    if (i % every === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${esc(labelFn(r, true))}</text>`;
+    hits += `<rect class="hit" data-i="${i}" x="${m.l + band * i}" y="${m.t}" width="${band}" height="${ih}" fill="transparent"/>`;
+  });
+  el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Grafik waktu aktif">${g}${marks}${hits}</svg>`;
+  el.querySelectorAll(".hit").forEach((h) => {
+    h.addEventListener("mousemove", (ev) => {
+      const r = rows[+h.dataset.i];
+      showTip(ev, `<div class="tt">${esc(tipTitle(r))}</div>` +
+        devs.map((d) => tipRow(devColor(d), d, fmtDur(r.per_device[d]))).join("") +
+        (devs.length > 1 ? `<div class="row" style="margin-top:4px">Total<b>${fmtDur(totals[+h.dataset.i])}</b></div>` : ""));
+    });
+    h.addEventListener("mouseleave", hideTip);
+  });
+}
+
+function renderSeries(st) {
+  const g = st.range.group, devs = visibleDevices();
+  $("#seriesSub").textContent = { day: "per hari", week: "per minggu (mulai Senin)", month: "per bulan" }[g];
+  stackedColumns($("#seriesChart"), st.series, {
+    labelFn: (r, short) => periodLabel(r.period, g, short), tipTitle: (r) => periodLabel(r.period, g, false),
+  });
+  $("#seriesLegend").innerHTML = devs.length > 1
+    ? devs.map((d) => `<span><i class="sw" style="background:${devColor(d)}"></i>${esc(d)}</span>`).join("") : "";
+  $("#seriesTable").innerHTML = `<table><thead><tr><th>Periode</th>${devs.map((d) => `<th class="n">${esc(d)}</th>`).join("")}<th class="n">Total</th></tr></thead><tbody>` +
+    st.series.map((r) => `<tr><td>${esc(periodLabel(r.period, g, false))}</td>${devs.map((d) => `<td class="n">${fmtDur(r.per_device[d])}</td>`).join("")}<td class="n">${fmtDur(devs.reduce((a, d) => a + (r.per_device[d] || 0), 0))}</td></tr>`).join("") +
+    `</tbody></table>`;
+}
+
+function renderHours(st) {
+  const s = S.dayStartHour, rows = [...st.hours.slice(s), ...st.hours.slice(0, s)];
+  stackedColumns($("#hours"), rows, {
+    height: 180,
+    labelFn: (r) => String(r.hour).padStart(2, "0"),
+    tipTitle: (r) => `${String(r.hour).padStart(2, "0")}:00 – ${String((r.hour + 1) % 24).padStart(2, "0")}:00`,
+  });
+}
+
+function renderCategories(st) {
+  const total = st.total || 1, max = Math.max(1, ...st.categories.map((c) => c.sec));
+  $("#categories").innerHTML = st.categories.length ? st.categories.map((c) => `
+    <div class="bar-row"><div class="name"><span class="sw" style="background:${catColor(c.name)}"></span>${esc(c.name)}</div>
+      <div class="track"><div class="fill" style="width:${(c.sec / max) * 100}%;background:${catColor(c.name)}"></div></div>
+      <div class="num">${fmtDur(c.sec)} <span class="m">· ${Math.round((c.sec / total) * 100)}%</span></div></div>`).join("")
+    : `<div class="empty">Belum ada data</div>`;
+}
+
+function renderApps(st) {
+  const devs = visibleDevices(), max = Math.max(1, ...st.apps.map((a) => a.sec));
+  $("#apps").innerHTML = st.apps.length ? `<table><thead><tr><th>Aplikasi</th>${devs.length > 1 ? devs.map((d) => `<th class="n">${esc(d)}</th>`).join("") : ""}<th class="n">Total</th></tr></thead><tbody>` +
+    st.apps.map((a) => `<tr><td><div class="t"><span class="sw" style="background:${catColor(a.category)};margin-right:6px"></span>${esc(a.app.replace(/\.exe$/i, ""))}</div>
+      <div class="inbar" style="width:${(a.sec / max) * 100}%"></div></td>
+      ${devs.length > 1 ? devs.map((d) => `<td class="n m">${a.per_device[d] ? fmtDur(a.per_device[d]) : "–"}</td>`).join("") : ""}
+      <td class="n">${fmtDur(a.sec)}</td></tr>`).join("") + `</tbody></table>`
+    : `<div class="empty">Belum ada data</div>`;
+}
+
+function renderTitles(st) {
+  $("#titles").innerHTML = st.titles.length ? `<table><thead><tr><th>Judul</th><th class="n">Durasi</th></tr></thead><tbody>` +
+    st.titles.map((t) => `<tr><td><div class="t" title="${esc(t.title)}">${esc(t.title || "(tanpa judul)")}</div>
+      <div class="m"><span class="sw" style="background:${catColor(t.category)};margin-right:6px;width:8px;height:8px"></span>${esc(t.app.replace(/\.exe$/i, ""))} · ${esc(t.category)}</div></td>
+      <td class="n">${fmtDur(t.sec)}</td></tr>`).join("") + `</tbody></table>`
+    : `<div class="empty">Belum ada data</div>`;
+}
+
+// ---------- timeline
+function renderTimeline() {
+  const tl = S.tl, el = $("#timeline"), devs = visibleDevices();
+  $("#tlDay").value = S.tlDay; $("#tlDay").max = S.today;
+  $("#tlNext").disabled = S.tlDay >= S.today;
+  const segs = tl.segments.filter((s) => devs.includes(s.device));
+  const byDev = devs.map((d) => segs.filter((s) => s.device === d).reduce((a, s) => a + s.active, 0));
+  $("#tlSub").textContent = `${fmtDate(S.tlDay, true)} · ${String(S.dayStartHour).padStart(2, "0")}:00 s/d ${String(S.dayStartHour).padStart(2, "0")}:00 · aktif ${fmtDur(byDev.reduce((a, b) => a + b, 0))}`;
+  const W = Math.max(280, el.clientWidth), rowH = 26, gapR = 10, m = { l: 90, r: 8, t: 4, b: 22 };
+  const H = m.t + devs.length * (rowH + gapR) - gapR + m.b, iw = W - m.l - m.r;
+  const span = tl.end - tl.start, x = (ts) => m.l + ((ts - tl.start) / span) * iw;
+  let g = "";
+  const tickEvery = iw < 500 ? 4 : 2;
+  for (let h = 0; h <= 24; h += tickEvery) {
+    const xx = m.l + (h / 24) * iw;
+    g += `<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)"/>`;
+    g += `<text x="${xx}" y="${H - 6}" text-anchor="middle">${String((S.dayStartHour + h) % 24).padStart(2, "0")}</text>`;
+  }
+  devs.forEach((d, i) => {
+    const y0 = m.t + i * (rowH + gapR);
+    g += `<rect x="${m.l}" y="${y0}" width="${iw}" height="${rowH}" fill="var(--wash)" rx="4"/>`;
+    g += `<text x="${m.l - 8}" y="${y0 + rowH / 2 + 4}" text-anchor="end" style="fill:var(--ink-2);font-size:12px">${esc(d)}</text>`;
+  });
+  let marks = "";
+  segs.forEach((s, k) => {
+    const i = devs.indexOf(s.device), y0 = m.t + i * (rowH + gapR);
+    const x0 = x(s.start), w = Math.max(1, x(s.end) - x0);
+    marks += `<rect class="seg" data-k="${k}" x="${x0}" y="${y0}" width="${w}" height="${rowH}" fill="${catColor(s.category)}"/>`;
+  });
+  el.innerHTML = segs.length || devs.length
+    ? `<svg width="${W}" height="${H}" role="img" aria-label="Timeline aktivitas">${g}${marks}</svg>` +
+      (segs.length ? "" : `<div class="empty">Tidak ada aktivitas di hari ini</div>`)
+    : "";
+  const svg = el.querySelector("svg");
+  // hit target dicari dari posisi kursor agar segmen sangat tipis tetap bisa di-hover
+  svg?.addEventListener("mousemove", (ev) => {
+    const r = svg.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const i = Math.floor((py - m.t) / (rowH + gapR));
+    if (i < 0 || i >= devs.length || py - m.t - i * (rowH + gapR) > rowH) return hideTip();
+    let best = null, bestDist = 4;
+    for (const s of segs) {
+      if (s.device !== devs[i]) continue;
+      const a = x(s.start), b = x(s.end), dist = px < a ? a - px : px > b ? px - b : 0;
+      if (dist < bestDist || (dist === 0 && bestDist === 0 && b - a < x(best.end) - x(best.start))) { best = s; bestDist = dist; }
+    }
+    if (!best) return hideTip();
+    showTip(ev, `<div class="tt">${esc(best.app.replace(/\.exe$/i, ""))}</div>
+      <div class="mt">${esc(best.title)}</div>
+      ${tipRow(catColor(best.category), best.category, "")}
+      <div class="row">${fmtClock(best.start)} – ${fmtClock(best.end)} · ${esc(best.device)}<b>${fmtDur(best.active)}</b></div>`);
+  });
+  svg?.addEventListener("mouseleave", hideTip);
+  const used = [...new Set(segs.map((s) => s.category))];
+  $("#catLegend").innerHTML = S.cats.filter((c) => used.includes(c.name))
+    .map((c) => `<span><i class="sw" style="background:${catColor(c.name)}"></i>${esc(c.name)}</span>`).join("");
+}
+
+function renderSync() {
+  const now = Date.now() / 1000;
+  const ago = (ts) => {
+    if (!ts) return "belum pernah";
+    const m = Math.round((now - ts) / 60);
+    return m < 1 ? "baru saja" : m < 60 ? `${m} mnt lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : `${Math.round(m / 1440)} hari lalu`;
+  };
+  $("#sync").innerHTML = S.devices.map((d) =>
+    `<span title="Sinkron terakhir"><b>${esc(d.name)}</b> sync ${ago(d.last_sync)}</span>`).join("");
+}
+
+// ---------- load
+let loadSeq = 0;
+async function load() {
+  const seq = ++loadSeq;
+  writeHash(); renderControls();
+  const qs = new URLSearchParams({ from: S.from, to: S.to, group: S.group, top: 15 });
+  if (S.hidden.size) qs.set("devices", visibleDevices().join(","));
+  try {
+    const st = await api("/api/stats?" + qs);
+    if (seq !== loadSeq) return;
+    S.stats = st; $("#error").classList.add("hidden");
+    renderKpis(st); renderSeries(st); renderHours(st); renderCategories(st); renderApps(st); renderTitles(st);
+    if (!S.tlDay || S.tlDay < S.from || S.tlDay > S.to) S.tlDay = S.to;
+    await loadTimeline();
+  } catch (e) {
+    $("#error").textContent = "Gagal memuat data: " + e.message; $("#error").classList.remove("hidden");
+  }
+}
+async function loadTimeline() {
+  writeHash();
+  S.tl = await api("/api/timeline?day=" + S.tlDay);
+  renderTimeline();
+}
+
+async function init() {
+  const [cfg, devices, cats] = await Promise.all([api("/api/config"), api("/api/devices"), api("/api/categories")]);
+  S.today = cfg.today; S.tz = cfg.tz; S.dayStartHour = cfg.day_start_hour;
+  S.devices = devices; S.cats = cats;
+  readHash();
+  S.hidden = new Set([...S.hidden].filter((h) => devices.some((d) => d.name === h)));
+  if (!S.from) { [S.from, S.to] = presetRange(S.preset, S.today); S.group = autoGroup(S.from, S.to); }
+  renderSync();
+  await load();
+}
+let rz;
+addEventListener("resize", () => {
+  clearTimeout(rz);
+  rz = setTimeout(() => { if (S.stats) { renderSeries(S.stats); renderHours(S.stats); } if (S.tl) renderTimeline(); }, 150);
+});
+init().catch((e) => { $("#error").textContent = "Gagal memuat: " + e.message; $("#error").classList.remove("hidden"); });
+</script>
+</body>
+</html>

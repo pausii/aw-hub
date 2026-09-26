@@ -1,0 +1,29 @@
+services:
+  app:
+    build: ./server
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./config:/config:ro   # edit config/categories.json → langsung terbaca, tanpa restart
+    expose:
+      - "8000"
+
+  # HTTPS otomatis (Let's Encrypt) untuk domain di AW_HUB_DOMAIN
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,7 @@
+{
+  "server_url": "https://aw.contoh.com",
+  "token": "ISI_DENGAN_AW_HUB_INGEST_TOKEN",
+  "device_name": "Kantor",
+  "aw_url": "http://localhost:5600",
+  "hide_title_regex": ""
+}

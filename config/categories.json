@@ -1,0 +1,47 @@
+{
+  "_help": "Aturan dicek dari atas ke bawah, yang pertama cocok menang. match: app | title | both. slot: 2-8 warna palet dashboard (slot 1/biru dipakai untuk perangkat) (tetap per kategori). File dibaca ulang otomatis saat berubah.",
+  "categories": [
+    {
+      "name": "Hiburan",
+      "slot": 8,
+      "match": "both",
+      "regex": "YouTube|Netflix|Spotify|Disney\\+|Vidio|Twitch|TikTok|Instagram|Facebook|Twitter| / X|Reddit|Steam|Epic Games|Minecraft|Valorant|Mobile Legends"
+    },
+    {
+      "name": "Komunikasi",
+      "slot": 2,
+      "match": "both",
+      "regex": "WhatsApp|Telegram|Slack|Discord|Teams|Zoom|Google Meet|Meet -|Gmail|Outlook|Thunderbird|Inbox"
+    },
+    {
+      "name": "Riset & AI",
+      "slot": 4,
+      "match": "title",
+      "regex": "Claude|ChatGPT|Gemini|Copilot|Perplexity|Stack Overflow|MDN|Documentation|Docs\\b|W3Schools|php\\.net|CodeIgniter"
+    },
+    {
+      "name": "Programming",
+      "slot": 7,
+      "match": "both",
+      "regex": "Code\\.exe|Code - Insiders|Visual Studio|devenv|WindowsTerminal|powershell|pwsh|cmd\\.exe|bash|mintty|wsl|Terminal|JetBrains|PhpStorm|idea64|Cursor|Postman|Insomnia|HeidiSQL|DBeaver|Navicat|MySQL Workbench|adminer|phpMyAdmin|GitHub|GitLab|Bitbucket|localhost|127\\.0\\.0\\.1|Docker|FileZilla|WinSCP|PuTTY|Termius|MobaXterm|Sentry|Grafana"
+    },
+    {
+      "name": "Dokumen & Office",
+      "slot": 3,
+      "match": "both",
+      "regex": "EXCEL\\.EXE|WINWORD|POWERPNT|Microsoft Excel|Microsoft Word|PowerPoint|Google Sheets|Google Docs|Google Slides|Spreadsheet|Notion|Obsidian|Acrobat|\\.pdf|Foxit|ClickUp|Jira|Trello|Figma|draw\\.io|Miro"
+    },
+    {
+      "name": "Browsing",
+      "slot": 6,
+      "match": "app",
+      "regex": "^(chrome|firefox|msedge|brave|opera|vivaldi|safari|arc)(\\.exe)?$"
+    },
+    {
+      "name": "Sistem",
+      "slot": 5,
+      "match": "app",
+      "regex": "explorer\\.exe|LockApp|SystemSettings|ApplicationFrameHost|SearchHost|ShellExperienceHost|Taskmgr|mmc\\.exe|nautilus|Finder"
+    }
+  ]
+}

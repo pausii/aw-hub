@@ -1,0 +1,6 @@
+.env
+data/
+__pycache__/
+agent/config.json
+agent/state.json
+agent/*.log*
