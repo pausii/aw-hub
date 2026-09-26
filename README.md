@@ -98,7 +98,9 @@ Perintah manual: `python aw_hub_agent.py` (sinkron biasa), `--days 30` (kirim ul
 
 ## 3. Kategori
 
-Edit `config/categories.json`. Aturan dicek dari atas ke bawah dan yang pertama cocok menang.
+**Cara termudah:** klik tombol **Edit** di kartu *Categories* pada dashboard. Di sana kamu bisa mengubah nama, warna, urutan, dan regex; mengatur jam dan hari kerja; lalu **menguji aturan** pada data 30 hari terakhir. Aplikasi atau judul yang belum punya kategori bisa langsung dimasukkan ke kategori tertentu. Aturan hasil edit disimpan di `data/categories.json` di server, jadi tidak tertimpa saat deploy. *Reset to default* akan kembali memakai file di repo.
+
+Secara manual: edit `config/categories.json`. Aturan dicek dari atas ke bawah dan yang pertama cocok menang.
 `match` bisa `app`, `title`, atau `both`, sedangkan `slot` (2–8) adalah warna tetap kategori tersebut.
 Server membaca ulang file ini otomatis, jadi cukup refresh dashboard. Kategori dihitung saat dashboard dibuka,
 sehingga perubahan aturan langsung berlaku juga untuk data lama.
@@ -136,7 +138,26 @@ Server akan mengirim ringkasan minggu lalu (Senin–Minggu) setiap **Senin 07:00
 jadi restart server tidak menyebabkan laporan terkirim dua kali. Dari kartu *Kerja vs pribadi* di dashboard,
 laporan bisa **dipratinjau** atau **dikirim sekarang**.
 
-## 6. Bahasa (EN / ID)
+## 6. Filter & pencarian
+
+Klik kategori (di daftar atau donut), aplikasi, segmen timeline, atau judul window untuk memfilter **semua**
+chart. Klik item yang sama sekali lagi, atau tanda × pada chip filter, untuk menghapus filternya. Kotak pencarian
+mencari teks di judul window. Filter tersimpan di URL, jadi tampilan terfilter bisa di-bookmark.
+
+## 7. Ritme harian
+
+Kartu *Daily rhythm* menampilkan jam mulai dan selesai tiap hari (aktivitas pertama dan terakhir), rentang hari,
+istirahat terpanjang (jeda ≥ 5 menit), dan jumlah *malam larut* (aktivitas terakhir lewat 22:00).
+Hari dengan aktivitas kurang dari 5 menit diabaikan.
+
+## 8. Pasang sebagai aplikasi (PWA)
+
+Di Chrome/Edge (desktop atau Android) pilih **Install app**. Di iPhone, pakai **Share → Add to Home Screen**.
+Service worker hanya menyimpan ikon dan halaman offline di cache. Data dan halaman dashboard **tidak** pernah
+di-cache, jadi data pribadi tidak tersimpan di perangkat.
+Ikon dan favicon dibuat dengan `python deploy/make-icons.py` (butuh Pillow).
+
+## 9. Bahasa (EN / ID)
 
 Dashboard dan halaman login tersedia dalam bahasa Inggris (default) dan Indonesia. Ganti lewat tombol 🌐 di pojok kanan atas.
 Pilihan bahasa disimpan per browser. Nama kategori memakai `name_en` di `config/categories.json` saat bahasa Inggris aktif.

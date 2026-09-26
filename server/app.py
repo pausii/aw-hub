@@ -151,18 +151,13 @@ def require_ingest(request: Request):
 
 UNCATEGORIZED = "Lainnya"
 DEFAULT_WORK = {"categories": [], "days": [0, 1, 2, 3, 4], "start_hour": 8, "end_hour": 17, "office_devices": []}
-_cat_state = {"mtime": None, "rules": [], "meta": {}, "work": DEFAULT_WORK}
+# Aturan hasil edit di dashboard disimpan di volume data (tidak tertimpa deploy);
+# bila belum ada, dipakai config/categories.json dari repo sebagai default.
+CUSTOM_CATEGORIES_PATH = DB_PATH.parent / "categories.json"
+_cat_state = {"key": None, "rules": [], "meta": {}, "work": DEFAULT_WORK, "raw": {}, "source": "default"}
 
 
-def load_categories():
-    """Muat ulang categories.json bila file berubah (tanpa restart server)."""
-    try:
-        mtime = CATEGORIES_PATH.stat().st_mtime
-    except FileNotFoundError:
-        return _cat_state
-    if mtime == _cat_state["mtime"]:
-        return _cat_state
-    raw = json.loads(CATEGORIES_PATH.read_text(encoding="utf-8"))
+def compile_config(raw: dict):
     rules, meta = [], {}
     for i, c in enumerate(raw.get("categories", [])):
         name = c["name"]
@@ -173,20 +168,39 @@ def load_categories():
     meta.setdefault(UNCATEGORIZED, {"slot": None, "color": None, "order": 999, "name_en": "Other"})
     work = {**DEFAULT_WORK, **raw.get("work", {})}
     work["categories"] = set(work["categories"])
-    _cat_state.update(mtime=mtime, rules=rules, meta=meta, work=work)
+    return rules, meta, work
+
+
+def load_categories():
+    """Muat ulang aturan bila file berubah (tanpa restart server)."""
+    path = CUSTOM_CATEGORIES_PATH if CUSTOM_CATEGORIES_PATH.exists() else CATEGORIES_PATH
+    try:
+        key = (str(path), path.stat().st_mtime)
+    except FileNotFoundError:
+        return _cat_state
+    if key == _cat_state["key"]:
+        return _cat_state
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    rules, meta, work = compile_config(raw)
+    _cat_state.update(key=key, rules=rules, meta=meta, work=work, raw=raw,
+                      source="custom" if path == CUSTOM_CATEGORIES_PATH else "default")
     classify.cache_clear()
     return _cat_state
 
 
-@lru_cache(maxsize=50000)
-def classify(app_name: str, title: str) -> str:
-    # Aturan pertama yang cocok menang; urutan di categories.json = prioritas.
-    for name, rx, match in _cat_state["rules"]:
+def classify_with(rules, app_name: str, title: str) -> str:
+    for name, rx, match in rules:
         if match in ("app", "both") and rx.search(app_name):
             return name
         if match in ("title", "both") and rx.search(title):
             return name
     return UNCATEGORIZED
+
+
+@lru_cache(maxsize=50000)
+def classify(app_name: str, title: str) -> str:
+    # Aturan pertama yang cocok menang; urutan di categories.json = prioritas.
+    return classify_with(_cat_state["rules"], app_name, title)
 
 
 # ---------------------------------------------------------------- waktu
@@ -244,7 +258,21 @@ def iter_periods(d_from: date, d_to: date, group: str):
     return seen
 
 
-def _range_sql(d_from: date, d_to: date, devices, select: str):
+class Filter(BaseModel):
+    """Filter klik/pencarian dari dashboard. app & q difilter di SQL, category di Python."""
+    app: str | None = None
+    category: str | None = None
+    q: str | None = None
+
+    @property
+    def active(self) -> bool:
+        return bool(self.app or self.category or self.q)
+
+
+NO_FILTER = Filter()
+
+
+def _range_sql(d_from: date, d_to: date, devices, select: str, flt: Filter = NO_FILTER):
     a, b = day_start_utc(d_from), day_start_utc(d_to + timedelta(days=1))
     # ingest memotong event per hari UTC, jadi tak ada event > 1 hari: batas bawah
     # ts_start ini membuat index ix_events_start terpakai di kedua sisi.
@@ -253,20 +281,37 @@ def _range_sql(d_from: date, d_to: date, devices, select: str):
     if devices:
         sql += f" AND device IN ({','.join('?' * len(devices))})"
         params += devices
+    if flt.app:
+        sql += " AND app = ?"
+        params.append(flt.app)
+    if flt.q:
+        # LIKE dengan wildcard pengguna di-escape → pencarian teks biasa (case-insensitive utk ASCII)
+        esc_q = flt.q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        sql += " AND title LIKE ? ESCAPE '\\'"
+        params.append(f"%{esc_q}%")
     return a, b, sql, params
 
 
-def fetch_events(d_from: date, d_to: date, devices):
-    a, b, sql, params = _range_sql(d_from, d_to, devices, "device, ts_start, ts_end, app, title")
+def fetch_events(d_from: date, d_to: date, devices, flt: Filter = NO_FILTER):
+    a, b, sql, params = _range_sql(d_from, d_to, devices, "device, ts_start, ts_end, app, title", flt)
     with db() as con:
         for dev, s, t, app_name, title in con.execute(sql + " ORDER BY ts_start", params):
+            if flt.category and classify(app_name, title) != flt.category:
+                continue
             yield dev, max(s, a), min(t, b), app_name, title
 
 
-def total_seconds(d_from: date, d_to: date, devices) -> float:
-    a, b, sql, params = _range_sql(d_from, d_to, devices, "SUM(MIN(ts_end, ?) - MAX(ts_start, ?))")
+def total_seconds(d_from: date, d_to: date, devices, flt: Filter = NO_FILTER) -> float:
+    if flt.category:
+        return sum(t - s for _, s, t, _, _ in fetch_events(d_from, d_to, devices, flt))
+    a, b, sql, params = _range_sql(d_from, d_to, devices, "SUM(MIN(ts_end, ?) - MAX(ts_start, ?))", flt)
     with db() as con:
         return con.execute(sql, [b, a] + params).fetchone()[0] or 0.0
+
+
+def parse_filter(app: str | None, category: str | None, q: str | None) -> Filter:
+    return Filter(app=(app or None) and app[:500], category=(category or None) and category[:100],
+                  q=(q or "").strip()[:200] or None)
 
 
 def parse_devices(devices: str | None):
@@ -351,10 +396,14 @@ def stats(
     group: str = Query("day", pattern="^(day|week|month)$"),
     devices: str | None = None,
     top: int = Query(15, ge=1, le=100),
+    app: str | None = None,
+    category: str | None = None,
+    q: str | None = None,
 ):
     parse_range(d_from, d_to)
     devs = parse_devices(devices)
     load_categories()
+    flt = parse_filter(app, category, q)
 
     cells = defaultdict(float)                              # (hari, jam, device) -> detik
     fine = defaultdict(float)                               # (hari, jam, device, kategori) -> detik
@@ -362,8 +411,9 @@ def stats(
     per_cat = defaultdict(float)
     per_app = defaultdict(lambda: defaultdict(float))      # app -> device -> detik
     per_title = defaultdict(float)
+    rhythm = {}                                             # hari -> [mulai, selesai, ujung_terakhir, jeda_terpanjang, awal_jeda, aktif]
 
-    for dev, s, t, app_name, title in fetch_events(d_from, d_to, devs):
+    for dev, s, t, app_name, title in fetch_events(d_from, d_to, devs, flt):
         dur = t - s
         cat = classify(app_name, title)
         per_device[dev] += dur
@@ -373,6 +423,17 @@ def stats(
         for d, h, sec in split_hours(s, t):
             cells[(d, h, dev)] += sec
             fine[(d, h, dev, cat)] += sec
+        # ritme harian: event urut ts_start (lintas perangkat) → jeda = celah antar aktivitas
+        d0 = _day_of_local_hour(int((s + _utc_offset(int(s // 3600))) // 3600))
+        r = rhythm.get(d0)
+        if r is None:
+            rhythm[d0] = [s, t, t, 0.0, None, dur]
+        else:
+            if s - r[2] > r[3]:
+                r[3], r[4] = s - r[2], r[2]
+            r[1] = max(r[1], t)
+            r[2] = max(r[2], t)
+            r[5] += dur
 
     series = defaultdict(lambda: defaultdict(float))       # periode -> device -> detik
     per_day = defaultdict(float)
@@ -402,7 +463,8 @@ def stats(
     return {
         "range": {"from": d_from, "to": d_to, "days": n_days, "group": group},
         "total": total,
-        "prev_total": total_seconds(prev_from, prev_to, devs),
+        "prev_total": total_seconds(prev_from, prev_to, devs, flt),
+        "filter": flt.model_dump(),
         "prev_range": {"from": prev_from, "to": prev_to},
         "active_days": active_days,
         "avg_per_active_day": total / active_days if active_days else 0,
@@ -433,7 +495,28 @@ def stats(
             {"period": k, "per_category": dict(cat_series.get(k, {}))} for k in iter_periods(d_from, d_to, group)
         ],
         "work": work_insight(fine, d_from, d_to, group),
+        "rhythm": rhythm_days(rhythm),
     }
+
+
+RHYTHM_MIN_ACTIVE = 5 * 60   # hari dengan aktivitas < 5 menit diabaikan
+RHYTHM_MIN_BREAK = 5 * 60    # jeda < 5 menit tidak dihitung istirahat
+
+
+def rhythm_days(rhythm: dict):
+    """Per hari: jam mulai/selesai & istirahat terpanjang, dalam detik sejak awal hari logis."""
+    out = []
+    for d in sorted(rhythm):
+        first, last, _, gap, gap_at, active = rhythm[d]
+        if active < RHYTHM_MIN_ACTIVE:
+            continue
+        base = day_start_utc(d)
+        out.append({
+            "day": d, "start": first - base, "end": min(last - base, 86400), "active": active,
+            "break": gap if gap >= RHYTHM_MIN_BREAK else 0,
+            "break_start": (gap_at - base) if gap >= RHYTHM_MIN_BREAK else None,
+        })
+    return out
 
 
 def work_insight(fine, d_from: date, d_to: date, group: str):
@@ -483,11 +566,12 @@ def work_insight(fine, d_from: date, d_to: date, group: str):
 
 
 @app.get("/api/timeline", dependencies=[Depends(require_dashboard)])
-def timeline(day: date, devices: str | None = None):
+def timeline(day: date, devices: str | None = None, app: str | None = None,
+             category: str | None = None, q: str | None = None):
     load_categories()
     segs = []
     last_by_dev = {}
-    for dev, s, t, app_name, title in fetch_events(day, day, parse_devices(devices)):
+    for dev, s, t, app_name, title in fetch_events(day, day, parse_devices(devices), parse_filter(app, category, q)):
         cat = classify(app_name, title)
         prev = last_by_dev.get(dev)
         if prev and prev["app"] == app_name and s - prev["end"] <= TIMELINE_MERGE_GAP:
@@ -516,6 +600,108 @@ def config(request: Request):
             "telegram": report.configured(),
             "report_schedule": {"weekday": report.REPORT_WEEKDAY, "hour": report.REPORT_HOUR},
             "report_lang": report.REPORT_LANG}
+
+
+# ---------------------------------------------------------------- editor kategori
+
+HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
+
+
+class CategoryRule(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    name_en: str | None = Field(None, max_length=50)
+    slot: int | None = Field(None, ge=2, le=8)
+    color: str | None = Field(None, pattern=HEX_COLOR)
+    match: str = Field("both", pattern="^(app|title|both)$")
+    regex: str = Field("", max_length=4000)
+    ignore_case: bool = True
+
+
+class WorkConfig(BaseModel):
+    categories: list[str] = Field(default_factory=list, max_length=50)
+    days: list[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4], max_length=7)
+    start_hour: int = Field(8, ge=0, le=23)
+    end_hour: int = Field(17, ge=1, le=24)
+    office_devices: list[str] = Field(default_factory=list, max_length=20)
+
+
+class CategoryConfig(BaseModel):
+    categories: list[CategoryRule] = Field(max_length=40)
+    work: WorkConfig = Field(default_factory=WorkConfig)
+
+
+def validate_config(cfg: CategoryConfig) -> dict:
+    names = [c.name for c in cfg.categories]
+    if len(set(names)) != len(names):
+        raise HTTPException(422, "Nama kategori harus unik")
+    if UNCATEGORIZED in names:
+        raise HTTPException(422, f'"{UNCATEGORIZED}" dipakai untuk aktivitas tanpa kategori')
+    for c in cfg.categories:
+        try:
+            re.compile(c.regex, re.IGNORECASE if c.ignore_case else 0)
+        except re.error as ex:
+            raise HTTPException(422, f'Regex "{c.name}" tidak valid: {ex}')
+    w = cfg.work
+    if w.end_hour <= w.start_hour:
+        raise HTTPException(422, "Jam selesai kerja harus setelah jam mulai")
+    if any(d < 0 or d > 6 for d in w.days):
+        raise HTTPException(422, "Hari kerja harus 0–6")
+    raw = cfg.model_dump(exclude_none=True)
+    raw["work"]["categories"] = [n for n in w.categories if n in names]
+    raw["work"]["days"] = sorted(set(w.days))
+    return raw
+
+
+@app.get("/api/categories/config", dependencies=[Depends(require_dashboard)])
+def categories_config():
+    st = load_categories()
+    raw = {k: v for k, v in st["raw"].items() if not k.startswith("_")}
+    return {"source": st["source"], "config": raw}
+
+
+@app.put("/api/categories/config", dependencies=[Depends(require_dashboard)])
+def categories_save(cfg: CategoryConfig):
+    raw = validate_config(cfg)
+    tmp = CUSTOM_CATEGORIES_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, CUSTOM_CATEGORIES_PATH)   # atomik
+    load_categories()
+    return {"ok": True, "source": "custom"}
+
+
+@app.delete("/api/categories/config", dependencies=[Depends(require_dashboard)])
+def categories_reset():
+    CUSTOM_CATEGORIES_PATH.unlink(missing_ok=True)
+    load_categories()
+    return {"ok": True, "source": "default"}
+
+
+@app.post("/api/categories/preview", dependencies=[Depends(require_dashboard)])
+def categories_preview(cfg: CategoryConfig, days: int = Query(30, ge=1, le=90)):
+    """Uji draft aturan pada data N hari terakhir: total per kategori + item teratas tanpa kategori."""
+    rules, _, _ = compile_config(validate_config(cfg))
+    d_to = logical_day(time.time())
+    d_from = d_to - timedelta(days=days - 1)
+    per_cat = defaultdict(float)
+    unc_app = defaultdict(float)
+    unc_title = defaultdict(float)
+    cache = {}
+    for _dev, s, t, app_name, title in fetch_events(d_from, d_to, None):
+        key = (app_name, title)
+        cat = cache.get(key)
+        if cat is None:
+            cat = cache[key] = classify_with(rules, app_name, title)
+        per_cat[cat] += t - s
+        if cat == UNCATEGORIZED:
+            unc_app[app_name] += t - s
+            unc_title[(app_name, title)] += t - s
+    top = lambda d, n: sorted(d.items(), key=lambda kv: -kv[1])[:n]
+    return {
+        "days": days,
+        "per_category": [{"name": k, "sec": v} for k, v in top(per_cat, 50)],
+        "uncategorized_apps": [{"app": k, "sec": v} for k, v in top(unc_app, 15)],
+        "uncategorized_titles": [{"app": k[0], "title": k[1], "sec": v} for k, v in top(unc_title, 15)],
+    }
 
 
 # ---------------------------------------------------------------- ringkasan mingguan (Telegram)
@@ -611,10 +797,12 @@ CSP_HTML = (
     f"script-src {_script_hashes('index.html', 'login.html')}; "
     "style-src 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src https://fonts.gstatic.com; "
-    "img-src 'self' data:; connect-src 'self'; "
+    "img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
     "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 )
 CSP_OTHER = "default-src 'none'; frame-ancestors 'none'"
+# CSP pada respons sw.js menjadi CSP service worker itu sendiri → fetch ke origin sendiri harus boleh
+CSP_SW = "default-src 'self'"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
@@ -628,7 +816,7 @@ async def security_headers(request: Request, call_next):
     res = await call_next(request)
     is_html = res.headers.get("content-type", "").startswith("text/html")
     h = res.headers
-    h["Content-Security-Policy"] = CSP_HTML if is_html else CSP_OTHER
+    h["Content-Security-Policy"] = CSP_SW if request.url.path == "/sw.js" else (CSP_HTML if is_html else CSP_OTHER)
     h["X-Content-Type-Options"] = "nosniff"
     h["X-Frame-Options"] = "DENY"
     h["Referrer-Policy"] = "same-origin"
@@ -654,6 +842,37 @@ def login_page(request: Request):
     if current_user(request):
         return RedirectResponse("/", status_code=303)
     return FileResponse(BASE_DIR / "static" / "login.html", headers={"Cache-Control": "no-cache"})
+
+
+# ---------------------------------------------------------------- aset publik (favicon, PWA)
+# Hanya file statis tanpa data pengguna, jadi boleh diakses tanpa login.
+STATIC = BASE_DIR / "static"
+PUBLIC_FILES = {
+    "/favicon.ico": ("icons/favicon.ico", "image/x-icon", "public, max-age=604800"),
+    "/favicon.svg": ("icons/favicon.svg", "image/svg+xml", "public, max-age=604800"),
+    "/apple-touch-icon.png": ("icons/apple-touch-icon.png", "image/png", "public, max-age=604800"),
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json", "public, max-age=3600"),
+    "/sw.js": ("sw.js", "text/javascript", "no-cache"),
+    "/offline.html": ("offline.html", "text/html; charset=utf-8", "no-cache"),
+}
+
+
+def _public_file(path: str):
+    rel, media, cache = PUBLIC_FILES[path]
+    return FileResponse(STATIC / rel, media_type=media, headers={"Cache-Control": cache})
+
+
+for _path in PUBLIC_FILES:
+    app.add_api_route(_path, (lambda p=_path: _public_file(p)), methods=["GET"], include_in_schema=False)
+
+ICON_NAME = re.compile(r"^[a-z0-9-]+\.(png|ico|svg)$")
+
+
+@app.get("/icons/{name}")
+def icon(name: str):
+    if not ICON_NAME.match(name) or not (STATIC / "icons" / name).is_file():
+        raise HTTPException(404)
+    return FileResponse(STATIC / "icons" / name, headers={"Cache-Control": "public, max-age=604800"})
 
 
 init_db()
