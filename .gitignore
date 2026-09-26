@@ -8,3 +8,4 @@ web/node_modules/
 web/dist/
 web/.astro/
 server/static/
+AGENTS.local.md

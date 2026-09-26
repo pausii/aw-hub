@@ -191,3 +191,7 @@ npm run build      # → web/dist (dipakai server lokal otomatis)
 - Judul window bisa memuat data sensitif (nama file, subjek email). Pakai `hide_title_regex` di laptop kantor
   dan pastikan hal ini sesuai kebijakan kantor.
 - Token agent hanya bisa menulis data. Kalau bocor, ganti `AW_HUB_INGEST_TOKEN` lalu perbarui `config.json` di laptop.
+
+## Lisensi
+
+[MIT](LICENSE) © 2026 Ahmad Pausi

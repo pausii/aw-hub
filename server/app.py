@@ -34,13 +34,15 @@ TZ = ZoneInfo(os.environ.get("AW_HUB_TZ", "Asia/Jakarta"))
 # Hari dianggap mulai jam ini (sama seperti "startOfDay" ActivityWatch), agar
 # pemakaian lewat tengah malam tetap masuk ke hari sebelumnya.
 DAY_START_HOUR = int(os.environ.get("AW_HUB_DAY_START_HOUR", "4"))
-INGEST_TOKEN = os.environ.get("AW_HUB_INGEST_TOKEN", "")
+# Boleh beberapa token dipisah koma: saat mengganti token, pasang token lama+baru sementara
+# agar laptop yang belum diperbarui tidak langsung gagal sync; hapus token lama setelahnya.
+INGEST_TOKENS = [t.strip() for t in os.environ.get("AW_HUB_INGEST_TOKEN", "").split(",") if t.strip()]
 DASH_USER = os.environ.get("AW_HUB_DASH_USER", "admin")
 DASH_PASSWORD = os.environ.get("AW_HUB_DASH_PASSWORD", "")
 MAX_RANGE_DAYS = 400
 TIMELINE_MERGE_GAP = 60  # detik; segmen app yang sama dengan jeda <= ini digabung di timeline
 
-if not INGEST_TOKEN or not DASH_PASSWORD:
+if not INGEST_TOKENS or not DASH_PASSWORD:
     raise SystemExit("AW_HUB_INGEST_TOKEN dan AW_HUB_DASH_PASSWORD wajib di-set.")
 
 app = FastAPI(title="AW Hub", docs_url=None, redoc_url=None, openapi_url=None)
@@ -146,7 +148,11 @@ def logout():
 def require_ingest(request: Request):
     auth = request.headers.get("authorization", "")
     token = auth[7:] if auth.lower().startswith("bearer ") else ""
-    if not token or not secrets.compare_digest(token.encode(), INGEST_TOKEN.encode()):
+    # bandingkan dengan SEMUA token (tanpa berhenti di yang pertama cocok) agar waktu respons seragam
+    ok = False
+    for valid in INGEST_TOKENS:
+        ok |= secrets.compare_digest(token.encode(), valid.encode())
+    if not token or not ok:
         raise HTTPException(401, "Token tidak valid")
 
 
