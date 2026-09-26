@@ -1,5 +1,26 @@
 {
   "_help": "Aturan dicek dari atas ke bawah, yang pertama cocok menang. match: app | title | both. slot: 2-8 warna palet dashboard (slot 1/biru dipakai untuk perangkat) (tetap per kategori). File dibaca ulang otomatis saat berubah.",
+  "_help_work": "Insight kerja vs pribadi. categories: kategori yang dihitung 'kerja'. days: 0=Senin..6=Minggu. start_hour/end_hour: jam kerja lokal [start, end). office_devices: device_name laptop kantor.",
+  "work": {
+    "categories": [
+      "Programming",
+      "Dokumen & Office",
+      "Riset & AI",
+      "Komunikasi"
+    ],
+    "days": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "start_hour": 8,
+    "end_hour": 17,
+    "office_devices": [
+      "Kantor"
+    ]
+  },
   "categories": [
     {
       "name": "Hiburan",

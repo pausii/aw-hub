@@ -37,6 +37,10 @@ Ada dua pilihan, tergantung apakah port 80/443 server sudah dipakai:
   Caddy akan mengurus HTTPS Let's Encrypt otomatis untuk `AW_HUB_DOMAIN`.
 
 Buka `https://<domain>` lalu login dengan `AW_HUB_DASH_USER` / `AW_HUB_DASH_PASSWORD`.
+Login dibatasi **5 percobaan gagal per IP per 15 menit**. Kunci berikutnya berlipat ganda, maksimal 24 jam.
+Ada juga batas global 30 kegagalan per 15 menit dari semua IP. Batas global ini melindungi dari serangan
+terdistribusi, dengan konsekuensi login ikut tertahan sementara saat terjadi serangan. Sesi berlaku 30 hari.
+Mengganti password akan mengeluarkan semua sesi.
 Database ada di `./data/aw-hub.db`. Untuk backup, cukup salin file itu.
 
 ### Tanpa Docker (sudah punya nginx/caddy sendiri)
@@ -99,10 +103,43 @@ Edit `config/categories.json`. Aturan dicek dari atas ke bawah dan yang pertama 
 Server membaca ulang file ini otomatis, jadi cukup refresh dashboard. Kategori dihitung saat dashboard dibuka,
 sehingga perubahan aturan langsung berlaku juga untuk data lama.
 
+## 4. Insight kerja vs pribadi
+
+Atur bagian `work` di `config/categories.json`:
+
+```json
+"work": {
+  "categories": ["Programming", "Dokumen & Office", "Riset & AI", "Komunikasi"],
+  "days": [0, 1, 2, 3, 4],
+  "start_hour": 8, "end_hour": 17,
+  "office_devices": ["Kantor"]
+}
+```
+
+Dashboard menampilkan:
+- total waktu kerja;
+- lembur (kerja di luar jam kerja) dan kerja di akhir pekan;
+- kerja di laptop selain `office_devices`;
+- aktivitas non-kerja di jam kerja;
+- matriks perangkat × kerja/non-kerja.
+
+Jam kerja dihitung per jam lokal, dan jam 00–03 masuk ke hari kalender berikutnya.
+
+## 5. Ringkasan mingguan Telegram
+
+1. Buat bot lewat [@BotFather](https://t.me/BotFather) dan catat token-nya.
+2. Kirim pesan apa saja ke bot, lalu buka `https://api.telegram.org/bot<TOKEN>/getUpdates` untuk melihat `chat.id`.
+3. Isi `AW_HUB_TELEGRAM_BOT_TOKEN` dan `AW_HUB_TELEGRAM_CHAT_ID` di `.env`, lalu jalankan `docker compose up -d`.
+
+Server akan mengirim ringkasan minggu lalu (Senin–Minggu) setiap **Senin 07:00** (ubah lewat
+`AW_HUB_REPORT_WEEKDAY` / `AW_HUB_REPORT_HOUR`). Minggu yang sudah terkirim dicatat di database,
+jadi restart server tidak menyebabkan laporan terkirim dua kali. Dari kartu *Kerja vs pribadi* di dashboard,
+laporan bisa **dipratinjau** atau **dikirim sekarang**.
+
 ## Catatan keamanan
 
-- Dashboard dan API terbuka ke internet. Pakai password panjang, dan kalau bisa batasi akses di firewall/Caddy
-  (misalnya `remote_ip`) atau taruh di belakang Tailscale/Cloudflare Access.
+- Dashboard terbuka ke internet dan dilindungi login dengan batas percobaan. Pakai password panjang.
+  Kalau mau lebih ketat, tambahkan Cloudflare Access di depannya dan kecualikan `/api/ingest`.
 - Judul window bisa memuat data sensitif (nama file, subjek email). Pakai `hide_title_regex` di laptop kantor
   dan pastikan hal ini sesuai kebijakan kantor.
 - Token agent hanya bisa menulis data. Kalau bocor, ganti `AW_HUB_INGEST_TOKEN` lalu perbarui `config.json` di laptop.

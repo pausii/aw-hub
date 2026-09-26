@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk · AW Hub</title>
+<script>
+  // tema dipasang sebelum render agar tidak berkedip
+  try { const t = localStorage.getItem("awhub-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f4f3ef; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --line: #e1e0d9; --border: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.05);
+  --accent: #2a78d6; --accent-ink: #ffffff; --bad: #b3261e; --focus: rgba(42,120,214,.35);
+  --ring-kantor: #256abf; --ring-pribadi: #86b6ef;
+  --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7;
+  --dial: #ecebe6; --glow: rgba(42,120,214,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --line: #2c2c2a; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+    --accent: #3987e5; --accent-ink: #ffffff; --bad: #e66767; --focus: rgba(57,135,229,.45);
+    --ring-kantor: #3987e5; --ring-pribadi: #9ec5f4;
+    --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9;
+    --dial: #202020; --glow: rgba(57,135,229,.14);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --line: #2c2c2a; --border: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+  --accent: #3987e5; --accent-ink: #ffffff; --bad: #e66767; --focus: rgba(57,135,229,.45);
+  --ring-kantor: #3987e5; --ring-pribadi: #9ec5f4;
+  --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9;
+  --dial: #202020; --glow: rgba(57,135,229,.14);
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); min-height: 100vh;
+}
+.display { font-family: "Space Grotesk", system-ui, sans-serif; }
+
+/* ---------- panel kiri: jam 24 jam */
+.stage {
+  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: 40px 32px; overflow: hidden;
+  background: radial-gradient(circle at 50% 46%, var(--glow), transparent 62%);
+}
+.brand { position: absolute; top: 28px; left: 32px; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 26px; height: 26px; }
+.brand-name { font-weight: 700; font-size: 17px; letter-spacing: -.01em; }
+#dial { width: min(520px, 82vmin); height: auto; aspect-ratio: 1; flex: none; overflow: visible; }
+#dial text { font-family: "Space Grotesk", system-ui, sans-serif; }
+.arc { fill: none; stroke-linecap: butt; }
+.tagline { margin-top: 18px; text-align: center; max-width: 380px; }
+.tagline h2 { font-size: 26px; line-height: 1.15; margin: 0 0 8px; font-weight: 500; letter-spacing: -.02em; }
+.tagline p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.key { display: inline-flex; align-items: center; gap: 6px; margin: 0 8px; }
+.key i { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+
+/* ---------- panel kanan: form */
+.side {
+  display: flex; flex-direction: column; justify-content: center; padding: 40px clamp(24px, 6vw, 88px);
+  background: var(--surface); border-left: 1px solid var(--border); position: relative;
+}
+.theme-btn {
+  position: absolute; top: 22px; right: 22px; display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 13px; color: var(--ink-2); background: transparent; border: 1px solid var(--border);
+  border-radius: 999px; padding: 5px 12px 5px 10px; cursor: pointer;
+}
+.theme-btn:hover { background: var(--wash); color: var(--ink); }
+.theme-btn svg { width: 15px; height: 15px; }
+form { width: 100%; max-width: 380px; }
+.greet { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+h1 { font-size: 40px; line-height: 1.05; margin: 0 0 8px; font-weight: 700; letter-spacing: -.035em; }
+.lead { color: var(--ink-2); margin: 0 0 32px; }
+label { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; font-weight: 500; }
+.field { position: relative; margin-bottom: 18px; }
+input[type=text], input[type=password] {
+  width: 100%; font: inherit; font-size: 15px; color: var(--ink); background: var(--page);
+  border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--focus); background: var(--surface); }
+input[aria-invalid="true"] { border-color: var(--bad); }
+.peek {
+  position: absolute; right: 8px; bottom: 8px; border: 0; background: transparent; color: var(--muted);
+  cursor: pointer; padding: 6px; border-radius: 8px; display: grid; place-items: center;
+}
+.peek:hover { color: var(--ink); background: var(--wash); }
+.peek svg { width: 18px; height: 18px; }
+button.submit {
+  width: 100%; margin-top: 6px; font: inherit; font-weight: 600; font-size: 15px;
+  color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 12px; padding: 14px;
+  cursor: pointer; display: inline-flex; justify-content: center; align-items: center; gap: 8px;
+  transition: filter .15s, transform .05s;
+}
+button.submit:hover { filter: brightness(1.08); }
+button.submit:active { transform: translateY(1px); }
+button.submit:disabled { cursor: not-allowed; filter: grayscale(.6) opacity(.6); }
+.spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.msg {
+  display: none; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 11px 13px; border-radius: 12px;
+  font-size: 14px; color: var(--ink); background: var(--wash); border: 1px solid var(--border);
+}
+.msg.show { display: flex; }
+.msg svg { flex: none; width: 18px; height: 18px; color: var(--bad); margin-top: 1px; }
+.msg .dots { display: flex; gap: 4px; margin-top: 6px; }
+.msg .dots i { width: 18px; height: 4px; border-radius: 2px; background: var(--line); }
+.msg .dots i.on { background: var(--bad); }
+.foot { margin-top: 28px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.foot svg { width: 13px; height: 13px; }
+
+@media (max-width: 860px) {
+  body { grid-template-columns: minmax(0, 1fr); }
+  .stage { padding: 76px 16px 8px; }
+  #dial { width: min(300px, 72vw); }
+  .tagline { display: none; }
+  .side { border-left: 0; border-top: 1px solid var(--border); padding: 32px 16px 40px; align-items: center; }
+  .theme-btn { position: fixed; top: 16px; right: 16px; background: var(--surface); z-index: 2; }
+  .brand { top: 18px; left: 16px; }
+  h1 { font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+  <section class="stage" aria-hidden="true">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26"><circle cx="13" cy="13" r="10.5" fill="none" stroke="var(--ring-kantor)" stroke-width="3" stroke-dasharray="33 100" transform="rotate(-150 13 13)"/><circle cx="13" cy="13" r="10.5" fill="none" stroke="var(--ring-pribadi)" stroke-width="3" stroke-dasharray="18 100" transform="rotate(40 13 13)"/><circle cx="13" cy="13" r="2.2" fill="var(--ink)"/></svg>
+      <span class="brand-name display">AW Hub</span>
+    </div>
+    <svg id="dial" viewBox="-260 -260 520 520"></svg>
+    <div class="tagline">
+      <h2 class="display">Dua laptop, satu hari.</h2>
+      <p><span class="key"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--ink-2)" stroke-width="3"/></svg>cincin luar · Kantor</span>
+         <span class="key"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--line)" stroke-width="3"/><circle cx="8" cy="8" r="3" fill="none" stroke="var(--ink-2)" stroke-width="2"/></svg>cincin dalam · Pribadi</span></p>
+    </div>
+  </section>
+
+  <main class="side">
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema"></button>
+    <form id="form" novalidate>
+      <div class="greet" id="greet"></div>
+      <h1 class="display">Masuk ke<br>AW Hub</h1>
+      <p class="lead">Ringkasan aktivitas kedua laptopmu, dalam satu tempat.</p>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <button class="peek" type="button" id="peek" aria-label="Tampilkan password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <button class="submit" type="submit" id="submit">Masuk</button>
+      <div class="msg" id="msg" role="alert" aria-live="polite">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>
+        <div><div id="msgText"></div><div class="dots" id="dots"></div></div>
+      </div>
+      <div class="foot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Dibatasi 5 percobaan per 15 menit.
+      </div>
+    </form>
+  </main>
+
+<script>
+"use strict";
+const TZ = "Asia/Jakarta";
+const $ = (s) => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+
+// ---------- tema: otomatis → terang → gelap
+const THEMES = ["auto", "light", "dark"];
+const THEME_LABEL = { auto: "Otomatis", light: "Terang", dark: "Gelap" };
+const THEME_ICON = {
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>',
+};
+function getTheme() { try { return localStorage.getItem("awhub-theme") || "auto"; } catch (e) { return "auto"; } }
+function applyTheme(t) {
+  if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("awhub-theme", t); } catch (e) {}
+  $("#themeBtn").innerHTML = THEME_ICON[t] + THEME_LABEL[t];
+}
+applyTheme(getTheme());
+$("#themeBtn").addEventListener("click", () => applyTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % 3]));
+
+// ---------- jam 24 jam (dekoratif: segmen acak berbiji tetap, bukan data asli)
+function rng(seed) { return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  parent && parent.appendChild(n);
+  return n;
+}
+const ang = (h) => (h / 24) * 2 * Math.PI - Math.PI / 2;   // 00:00 di atas
+const pt = (h, r) => [Math.cos(ang(h)) * r, Math.sin(ang(h)) * r];
+function arcPath(h0, h1, r) {
+  const [x0, y0] = pt(h0, r), [x1, y1] = pt(h1, r);
+  return `M${x0},${y0} A${r},${r} 0 ${h1 - h0 > 12 ? 1 : 0} 1 ${x1},${y1}`;
+}
+function segments(rand, from, to, colors) {
+  const out = []; let h = from;
+  while (h < to) {
+    const len = 0.15 + rand() * 0.9, gap = rand() < 0.2 ? 0.25 + rand() * 0.6 : 0.06;
+    out.push([h, Math.min(to, h + len), colors[Math.floor(rand() * colors.length)]]);
+    h += len + gap;
+  }
+  return out;
+}
+function drawDial() {
+  const svg = $("#dial"), rand = rng(20260926);
+  svg.innerHTML = "";
+  el("circle", { r: 236, fill: "none", stroke: "var(--line)" }, svg);
+  el("circle", { r: 150, fill: "var(--surface)", stroke: "var(--border)" }, svg);
+  for (let h = 0; h < 24; h++) {                            // tick jam
+    const major = h % 6 === 0, [x0, y0] = pt(h, major ? 222 : 228), [x1, y1] = pt(h, 236);
+    el("line", { x1: x0, y1: y0, x2: x1, y2: y1, stroke: major ? "var(--ink-2)" : "var(--muted)", "stroke-width": major ? 2 : 1 }, svg);
+    if (major) {
+      const [tx, ty] = pt(h, 250);
+      const t = el("text", { x: tx, y: ty + 4, "text-anchor": "middle", fill: "var(--muted)", "font-size": 13 }, svg);
+      t.textContent = String(h).padStart(2, "0");
+    }
+  }
+  el("circle", { r: 199, fill: "none", stroke: "var(--dial)", "stroke-width": 26 }, svg);
+  el("circle", { r: 168, fill: "none", stroke: "var(--dial)", "stroke-width": 22 }, svg);
+  // cincin luar = Kantor (pagi–sore), cincin dalam = Pribadi (malam)
+  const cats = ["var(--ring-kantor)", "var(--ring-kantor)", "var(--s7)", "var(--s3)", "var(--s2)", "var(--s6)"];
+  const rings = [
+    { r: 199, w: 26, segs: segments(rand, 7.6, 12.1, cats).concat(segments(rand, 13, 17.4, cats)) },
+    { r: 168, w: 22, segs: segments(rand, 19.2, 23.9, ["var(--ring-pribadi)", "var(--ring-pribadi)", "var(--s5)", "var(--s4)", "var(--s7)"])
+                        .concat(segments(rand, 24, 25.3, ["var(--ring-pribadi)", "var(--s5)"]).map(([a, b, c]) => [a - 24, b - 24, c])) },
+  ];
+  let k = 0;
+  for (const ring of rings) for (const [a, b, color] of ring.segs) {
+    const p = el("path", { d: arcPath(a, b, ring.r), class: "arc", stroke: color, "stroke-width": ring.w }, svg);
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = `${len} ${len}`; p.style.strokeDashoffset = len;
+    p.style.transition = `stroke-dashoffset .5s cubic-bezier(.2,.7,.2,1) ${0.25 + k++ * 0.018}s`;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    svg.querySelectorAll(".arc").forEach((p) => (p.style.strokeDashoffset = 0))));
+  // jarum + teks jam di tengah
+  // jarum hanya di area cincin, tidak menimpa teks jam di tengah
+  el("line", { id: "hand", stroke: "var(--ink)", "stroke-width": 2, "stroke-linecap": "round" }, svg);
+  el("circle", { id: "handTip", r: 6, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 3 }, svg);
+  const t1 = el("text", { id: "clock", y: -6, "text-anchor": "middle", fill: "var(--ink)", "font-size": 54, "font-weight": 500, "letter-spacing": "-1.5" }, svg);
+  const t2 = el("text", { id: "clockDate", y: 26, "text-anchor": "middle", fill: "var(--ink-2)", "font-size": 14 }, svg);
+  const t3 = el("text", { y: 48, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11, "letter-spacing": "2" }, svg);
+  t3.textContent = "WIB";
+  tick();
+}
+function nowParts() {
+  const f = new Intl.DateTimeFormat("id-ID", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+                                               weekday: "long", day: "numeric", month: "long" });
+  const p = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
+  return { h: +p.hour % 24, m: +p.minute, s: +p.second, label: `${p.weekday}, ${p.day} ${p.month}` };
+}
+function tick() {
+  const n = nowParts(), hf = n.h + n.m / 60 + n.s / 3600, [x, y] = pt(hf, 232), [x0, y0] = pt(hf, 150);
+  const hand = $("#hand"); if (!hand) return;
+  hand.setAttribute("x1", x0); hand.setAttribute("y1", y0);
+  hand.setAttribute("x2", x); hand.setAttribute("y2", y);
+  $("#handTip").setAttribute("cx", x); $("#handTip").setAttribute("cy", y);
+  $("#clock").textContent = `${String(n.h).padStart(2, "0")}:${String(n.m).padStart(2, "0")}`;
+  $("#clockDate").textContent = n.label;
+  $("#greet").textContent = n.h < 4 ? "Selamat malam 🌙" : n.h < 11 ? "Selamat pagi ☀️" : n.h < 15 ? "Selamat siang" : n.h < 18 ? "Selamat sore" : "Selamat malam 🌙";
+}
+drawDial();
+setInterval(tick, 1000);
+
+// ---------- form
+const form = $("#form"), btn = $("#submit"), msg = $("#msg");
+let lockTimer = null;
+$("#peek").addEventListener("click", () => {
+  const p = $("#password"); p.type = p.type === "password" ? "text" : "password"; p.focus();
+});
+function showMsg(text, remaining) {
+  $("#msgText").textContent = text;
+  $("#dots").innerHTML = remaining == null ? "" :
+    Array.from({ length: 5 }, (_, i) => `<i class="${i < 5 - remaining ? "on" : ""}"></i>`).join("");
+  msg.classList.add("show");
+}
+function lockFor(sec) {
+  clearInterval(lockTimer);
+  const until = Date.now() + sec * 1000;
+  const upd = () => {
+    const left = Math.max(0, Math.round((until - Date.now()) / 1000));
+    if (!left) { clearInterval(lockTimer); btn.disabled = false; btn.textContent = "Masuk"; msg.classList.remove("show"); return; }
+    btn.disabled = true;
+    const mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, "0");
+    btn.textContent = `Coba lagi dalam ${mm}:${ss}`;
+    showMsg("Terlalu banyak percobaan gagal. Login dikunci sementara untuk keamanan.");
+  };
+  upd(); lockTimer = setInterval(upd, 1000);
+}
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = $("#username").value.trim(), password = $("#password").value;
+  if (!username || !password) { showMsg("Isi username dan password."); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Memeriksa…';
+  try {
+    const r = await fetch(location.origin + "/api/login", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) {
+      btn.textContent = "Berhasil ✓";
+      const next = new URLSearchParams(location.search).get("next");
+      location.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+      return;
+    }
+    $("#password").value = ""; $("#password").setAttribute("aria-invalid", "true"); $("#password").focus();
+    if (r.status === 429) return lockFor(data.retry_after || 60);
+    showMsg(`${data.detail || "Gagal masuk."} Sisa ${data.remaining ?? "?"} percobaan.`, data.remaining);
+  } catch (err) {
+    showMsg("Tidak bisa menghubungi server. Periksa koneksi.");
+  }
+  btn.disabled = false; btn.textContent = "Masuk";   // gagal tanpa terkunci → boleh coba lagi
+});
+$("#password").addEventListener("input", () => $("#password").removeAttribute("aria-invalid"));
+$("#username").focus();
+</script>
+</body>
+</html>

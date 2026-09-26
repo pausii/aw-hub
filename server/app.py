@@ -19,9 +19,11 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
+
+import auth
+import report
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("AW_HUB_DB", BASE_DIR / "data" / "aw-hub.db"))
@@ -40,8 +42,10 @@ if not INGEST_TOKEN or not DASH_PASSWORD:
     raise SystemExit("AW_HUB_INGEST_TOKEN dan AW_HUB_DASH_PASSWORD wajib di-set.")
 
 app = FastAPI(title="AW Hub", docs_url=None, redoc_url=None, openapi_url=None)
-security = HTTPBasic(realm="AW Hub")
 _db_lock = threading.Lock()
+sessions = auth.Sessions(auth.load_secret(DB_PATH.parent / "secret.key", os.environ.get("AW_HUB_SECRET", "")),
+                         DASH_PASSWORD)
+limiter = auth.LoginLimiter()
 
 
 # ---------------------------------------------------------------- database
@@ -69,6 +73,10 @@ def init_db():
                 last_event REAL,
                 agent_version TEXT
             );
+            CREATE TABLE IF NOT EXISTS meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
             """
         )
 
@@ -86,11 +94,48 @@ def db():
 
 # ---------------------------------------------------------------- auth
 
-def require_dashboard(creds: HTTPBasicCredentials = Depends(security)):
-    ok_user = secrets.compare_digest(creds.username.encode(), DASH_USER.encode())
-    ok_pass = secrets.compare_digest(creds.password.encode(), DASH_PASSWORD.encode())
+def current_user(request: Request) -> str | None:
+    return sessions.verify(request.cookies.get(auth.COOKIE_NAME))
+
+
+def require_dashboard(request: Request):
+    if not current_user(request):
+        raise HTTPException(401, "Belum login")
+
+
+class LoginPayload(BaseModel):
+    username: str = Field(max_length=100)
+    password: str = Field(max_length=200)
+
+
+@app.post("/api/login")
+def login(p: LoginPayload, request: Request):
+    ip = auth.client_ip(request)
+    allowed, wait = limiter.check(ip)
+    if not allowed:
+        return JSONResponse({"detail": "Terlalu banyak percobaan.", "retry_after": wait}, status_code=429,
+                            headers={"Retry-After": str(wait)})
+    ok_user = secrets.compare_digest(p.username.encode(), DASH_USER.encode())
+    ok_pass = secrets.compare_digest(p.password.encode(), DASH_PASSWORD.encode())
     if not (ok_user and ok_pass):
-        raise HTTPException(401, "Unauthorized", headers={"WWW-Authenticate": 'Basic realm="AW Hub"'})
+        time.sleep(0.4)  # perlambat tebakan beruntun
+        remaining, lock = limiter.fail(ip)
+        if lock:
+            return JSONResponse({"detail": "Terlalu banyak percobaan.", "retry_after": lock}, status_code=429,
+                                headers={"Retry-After": str(lock)})
+        return JSONResponse({"detail": "Username atau password salah.", "remaining": remaining}, status_code=401)
+    limiter.success(ip)
+    res = JSONResponse({"ok": True})
+    res.set_cookie(auth.COOKIE_NAME, sessions.issue(p.username), max_age=auth.SESSION_TTL, httponly=True,
+                   samesite="lax", secure=request.url.scheme == "https", path="/")
+    return res
+
+
+@app.post("/api/logout")
+def logout():
+    res = JSONResponse({"ok": True})
+    res.delete_cookie(auth.COOKIE_NAME, path="/")
+    return res
 
 
 def require_ingest(request: Request):
@@ -102,8 +147,9 @@ def require_ingest(request: Request):
 
 # ---------------------------------------------------------------- kategori
 
-_cat_state = {"mtime": None, "rules": [], "meta": {}}
 UNCATEGORIZED = "Lainnya"
+DEFAULT_WORK = {"categories": [], "days": [0, 1, 2, 3, 4], "start_hour": 8, "end_hour": 17, "office_devices": []}
+_cat_state = {"mtime": None, "rules": [], "meta": {}, "work": DEFAULT_WORK}
 
 
 def load_categories():
@@ -123,7 +169,9 @@ def load_categories():
             flags = re.IGNORECASE if c.get("ignore_case", True) else 0
             rules.append((name, re.compile(c["regex"], flags), c.get("match", "both")))
     meta.setdefault(UNCATEGORIZED, {"slot": None, "color": None, "order": 999})
-    _cat_state.update(mtime=mtime, rules=rules, meta=meta)
+    work = {**DEFAULT_WORK, **raw.get("work", {})}
+    work["categories"] = set(work["categories"])
+    _cat_state.update(mtime=mtime, rules=rules, meta=meta, work=work)
     classify.cache_clear()
     return _cat_state
 
@@ -307,7 +355,7 @@ def stats(
     load_categories()
 
     cells = defaultdict(float)                              # (hari, jam, device) -> detik
-    cat_days = defaultdict(float)                           # (hari, kategori) -> detik
+    fine = defaultdict(float)                               # (hari, jam, device, kategori) -> detik
     per_device = defaultdict(float)
     per_cat = defaultdict(float)
     per_app = defaultdict(lambda: defaultdict(float))      # app -> device -> detik
@@ -322,7 +370,7 @@ def stats(
         per_title[(app_name, title, cat)] += dur
         for d, h, sec in split_hours(s, t):
             cells[(d, h, dev)] += sec
-            cat_days[(d, cat)] += sec
+            fine[(d, h, dev, cat)] += sec
 
     series = defaultdict(lambda: defaultdict(float))       # periode -> device -> detik
     per_day = defaultdict(float)
@@ -334,7 +382,7 @@ def stats(
         per_hour[h][dev] += sec
         heat[(d.weekday(), h)] += sec
     cat_series = defaultdict(lambda: defaultdict(float))   # periode -> kategori -> detik
-    for (d, cat), sec in cat_days.items():
+    for (d, _h, _dev, cat), sec in fine.items():
         cat_series[period_key(d, group)][cat] += sec
     # jumlah kemunculan tiap hari-dalam-minggu di rentang → pembagi rata-rata heatmap
     weekday_count = [0] * 7
@@ -382,6 +430,53 @@ def stats(
         "category_series": [
             {"period": k, "per_category": dict(cat_series.get(k, {}))} for k in iter_periods(d_from, d_to, group)
         ],
+        "work": work_insight(fine, d_from, d_to, group),
+    }
+
+
+def work_insight(fine, d_from: date, d_to: date, group: str):
+    """Kerja vs pribadi: kategori kerja × jam kerja × perangkat kantor (config `work`)."""
+    w = _cat_state["work"]
+    days, start_h, end_h = set(w["days"]), w["start_hour"], w["end_hour"]
+    office = set(w["office_devices"])
+    buckets = defaultdict(float)                     # in_hours | overtime | weekend | personal
+    personal_in_hours = 0.0
+    work_on_personal_device = 0.0
+    matrix = defaultdict(lambda: {"work": 0.0, "personal": 0.0})
+    series = defaultdict(lambda: defaultdict(float))
+    extra_per_day = defaultdict(float)               # lembur + akhir pekan per hari
+    for (d, h, dev, cat), sec in fine.items():
+        # hari kalender (bukan hari logis): jam 00–03 milik hari berikutnya
+        cal_wd = (d.weekday() + (1 if h < DAY_START_HOUR else 0)) % 7
+        in_sched = cal_wd in days and start_h <= h < end_h
+        if cat in w["categories"]:
+            kind = "weekend" if cal_wd not in days else ("in_hours" if in_sched else "overtime")
+            matrix[dev]["work"] += sec
+            if dev not in office:
+                work_on_personal_device += sec
+            if kind != "in_hours":
+                extra_per_day[d] += sec
+        else:
+            kind = "personal"
+            matrix[dev]["personal"] += sec
+            if in_sched:
+                personal_in_hours += sec
+        buckets[kind] += sec
+        series[period_key(d, group)][kind] += sec
+    work_total = buckets["in_hours"] + buckets["overtime"] + buckets["weekend"]
+    return {
+        "config": {"categories": sorted(w["categories"]), "days": sorted(days), "start_hour": start_h,
+                   "end_hour": end_h, "office_devices": sorted(office)},
+        "work_total": work_total,
+        "personal_total": buckets["personal"],
+        "in_hours": buckets["in_hours"],
+        "overtime": buckets["overtime"],
+        "weekend": buckets["weekend"],
+        "personal_in_hours": personal_in_hours,
+        "work_on_personal_device": work_on_personal_device,
+        "overtime_days": sum(1 for v in extra_per_day.values() if v >= 30 * 60),
+        "matrix": dict(matrix),
+        "series": [{"period": k, **series.get(k, {})} for k in iter_periods(d_from, d_to, group)],
     }
 
 
@@ -413,9 +508,68 @@ def timeline(day: date, devices: str | None = None):
 
 
 @app.get("/api/config", dependencies=[Depends(require_dashboard)])
-def config():
+def config(request: Request):
     return {"tz": str(TZ), "day_start_hour": DAY_START_HOUR,
-            "today": logical_day(time.time()).isoformat()}
+            "today": logical_day(time.time()).isoformat(), "user": current_user(request),
+            "telegram": report.configured(),
+            "report_schedule": {"weekday": report.REPORT_WEEKDAY, "hour": report.REPORT_HOUR}}
+
+
+# ---------------------------------------------------------------- ringkasan mingguan (Telegram)
+
+def meta_get(key: str) -> str | None:
+    with db() as con:
+        row = con.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+
+def meta_set(key: str, value: str):
+    with db() as con:
+        con.execute("INSERT INTO meta (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+
+def weekly_report_text(week_from: date | None = None) -> tuple[str, date, date]:
+    if week_from is None:
+        week_from, week_to = report.last_full_week(logical_day(time.time()))
+    else:
+        week_from -= timedelta(days=week_from.weekday())
+        week_to = week_from + timedelta(days=6)
+    st = stats(d_from=week_from, d_to=week_to, group="day", devices=None, top=5)
+    return report.build_text(st, week_from, week_to), week_from, week_to
+
+
+@app.get("/api/report/preview", dependencies=[Depends(require_dashboard)])
+def report_preview(week: date | None = None):
+    text, a, b = weekly_report_text(week)
+    return {"from": a, "to": b, "text": text, "telegram": report.configured(),
+            "last_sent_week": meta_get("report_last_week")}
+
+
+@app.post("/api/report/send", dependencies=[Depends(require_dashboard)])
+def report_send(week: date | None = None):
+    text, a, _ = weekly_report_text(week)
+    try:
+        report.send(text)
+    except RuntimeError as ex:
+        raise HTTPException(502, str(ex))
+    return {"ok": True, "week": a}
+
+
+def _report_loop():
+    while True:
+        wait = 60
+        try:
+            key = report.due(datetime.now(TZ), meta_get("report_last_week"))
+            if key:
+                text, _, _ = weekly_report_text(date.fromisoformat(key))
+                report.send(text)
+                meta_set("report_last_week", key)
+                report.log.warning("Ringkasan mingguan %s terkirim", key)
+        except Exception:  # jangan sampai thread mati; coba lagi 15 menit kemudian
+            report.log.exception("Gagal mengirim ringkasan mingguan")
+            wait = 15 * 60
+        time.sleep(wait)
 
 
 @app.get("/healthz")
@@ -423,10 +577,21 @@ def healthz():
     return {"ok": True}
 
 
-@app.get("/", dependencies=[Depends(require_dashboard)])
-def index():
+@app.get("/")
+def index(request: Request):
+    if not current_user(request):
+        return RedirectResponse("/login", status_code=303)
     return FileResponse(BASE_DIR / "static" / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/login")
+def login_page(request: Request):
+    if current_user(request):
+        return RedirectResponse("/", status_code=303)
+    return FileResponse(BASE_DIR / "static" / "login.html", headers={"Cache-Control": "no-cache"})
 
 
 init_db()
 load_categories()
+if report.configured():
+    threading.Thread(target=_report_loop, name="weekly-report", daemon=True).start()
