@@ -1,6 +1,48 @@
 # AW Hub
 
-Dashboard gabungan [ActivityWatch](https://activitywatch.net) untuk beberapa laptop.
+Dashboard *self-hosted* yang menggabungkan data [ActivityWatch](https://activitywatch.net) dari beberapa laptop
+dalam satu tempat. Proyek independen, bukan bagian resmi ActivityWatch.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-overview-dark.png">
+  <img alt="Dashboard AW Hub: total waktu aktif, tren harian per laptop, dan timeline 24 jam" src="docs/screenshots/dashboard-overview-light.png">
+</picture>
+
+**Fitur utama**
+
+- Total waktu aktif per laptop, perbandingan dengan periode sebelumnya, tren harian/mingguan/bulanan
+- Timeline 24 jam, ritme harian (jam mulai, selesai, istirahat terpanjang), heatmap hari × jam
+- Kategori aktivitas yang bisa diatur dari dashboard, insight **kerja vs pribadi** (lembur, akhir pekan)
+- Klik untuk memfilter semua chart, pencarian judul window
+- Ringkasan mingguan otomatis ke **Telegram**
+- Mode terang/gelap, bahasa Inggris/Indonesia, bisa dipasang sebagai aplikasi (PWA)
+- Login dengan batas percobaan, CSP ketat, agent tanpa dependency (Python standard library)
+
+## Tampilan
+
+<table>
+  <tr>
+    <td width="50%"><img alt="Timeline 24 jam per laptop" src="docs/screenshots/timeline.png"></td>
+    <td width="50%"><img alt="Ritme harian: jam mulai, selesai, dan istirahat" src="docs/screenshots/daily-rhythm.png"></td>
+  </tr>
+  <tr>
+    <td><img alt="Kategori (donut) dan daftar" src="docs/screenshots/categories.png"></td>
+    <td><img alt="Heatmap ritme mingguan hari × jam" src="docs/screenshots/hourly-heatmap.png"></td>
+  </tr>
+  <tr>
+    <td><img alt="Tren kategori per hari" src="docs/screenshots/category-trend.png"></td>
+    <td><img alt="Insight kerja vs pribadi" src="docs/screenshots/work-vs-personal.png"></td>
+  </tr>
+  <tr>
+    <td><img alt="Halaman login (terang)" src="docs/screenshots/login-light.png"></td>
+    <td><img alt="Halaman login (gelap)" src="docs/screenshots/login-dark.png"></td>
+  </tr>
+</table>
+
+Tampilan satu halaman penuh: [terang](docs/screenshots/dashboard-full-light.png) · [gelap](docs/screenshots/dashboard-full-dark.png).
+Judul window pada screenshot sengaja disamarkan.
+
+## Cara kerja
 
 ```
 Laptop kantor  ─┐  agent (tiap 15 mnt, HTTPS + token)
@@ -108,6 +150,8 @@ Perintah manual: `python aw_hub_agent.py` (sinkron biasa), `--days 30` (kirim ul
 
 **Cara termudah:** klik tombol **Edit** di kartu *Categories* pada dashboard. Di sana kamu bisa mengubah nama, warna, urutan, dan regex; mengatur jam dan hari kerja; lalu **menguji aturan** pada data 30 hari terakhir. Aplikasi atau judul yang belum punya kategori bisa langsung dimasukkan ke kategori tertentu. Aturan hasil edit disimpan di `data/categories.json` di server, jadi tidak tertimpa saat deploy. *Reset to default* akan kembali memakai file di repo.
 
+<p align="center"><img alt="Editor kategori di dashboard" src="docs/screenshots/category-editor.png" width="85%"></p>
+
 Secara manual: edit `config/categories.json`. Aturan dicek dari atas ke bawah dan yang pertama cocok menang.
 `match` bisa `app`, `title`, atau `both`, sedangkan `slot` (2–8) adalah warna tetap kategori tersebut.
 Server membaca ulang file ini otomatis, jadi cukup refresh dashboard. Kategori dihitung saat dashboard dibuka,
@@ -152,6 +196,8 @@ Klik kategori (di daftar atau donut), aplikasi, segmen timeline, atau judul wind
 chart. Klik item yang sama sekali lagi, atau tanda × pada chip filter, untuk menghapus filternya. Kotak pencarian
 mencari teks di judul window. Filter tersimpan di URL, jadi tampilan terfilter bisa di-bookmark.
 
+<p align="center"><img alt="Filter kategori aktif" src="docs/screenshots/filter-active.png" width="85%"></p>
+
 ## 7. Ritme harian
 
 Kartu *Daily rhythm* menampilkan jam mulai dan selesai tiap hari (aktivitas pertama dan terakhir), rentang hari,
@@ -165,11 +211,19 @@ Service worker hanya menyimpan ikon dan halaman offline di cache. Data dan halam
 di-cache, jadi data pribadi tidak tersimpan di perangkat.
 Ikon dan favicon dibuat dengan `python deploy/make-icons.py` (butuh Pillow).
 
+<p align="center">
+  <img alt="Dashboard di HP (terang)" src="docs/screenshots/mobile-dashboard-light.png" width="30%">
+  <img alt="Dashboard di HP (gelap)" src="docs/screenshots/mobile-dashboard-dark.png" width="30%">
+  <img alt="Login di HP (gelap)" src="docs/screenshots/mobile-login-dark.png" width="30%">
+</p>
+
 ## 9. Bahasa (EN / ID)
 
 Dashboard dan halaman login tersedia dalam bahasa Inggris (default) dan Indonesia. Ganti lewat tombol 🌐 di pojok kanan atas.
 Pilihan bahasa disimpan per browser. Nama kategori memakai `name_en` di `config/categories.json` saat bahasa Inggris aktif.
 Bahasa ringkasan Telegram diatur terpisah lewat `AW_HUB_REPORT_LANG` (`en` | `id`).
+
+<p align="center"><img alt="Dashboard dalam bahasa Indonesia" src="docs/screenshots/dashboard-overview-id.png" width="85%"></p>
 
 ## 10. Pengembangan frontend
 
@@ -190,7 +244,10 @@ npm run build      # → web/dist (dipakai server lokal otomatis)
   Kalau mau lebih ketat, tambahkan Cloudflare Access di depannya dan kecualikan `/api/ingest`.
 - Judul window bisa memuat data sensitif (nama file, subjek email). Pakai `hide_title_regex` di laptop kantor
   dan pastikan hal ini sesuai kebijakan kantor.
-- Token agent hanya bisa menulis data. Kalau bocor, ganti `AW_HUB_INGEST_TOKEN` lalu perbarui `config.json` di laptop.
+- Token agent hanya bisa menulis data. `AW_HUB_INGEST_TOKEN` boleh berisi beberapa token dipisah koma, jadi token
+  bisa diganti tanpa putus sync: pasang `baru,lama`, perbarui `config.json` di semua laptop, lalu hapus token lama.
+- Ganti password dashboard dengan `deploy/set-password.sh`, dan nilai rahasia lain (mis. token bot Telegram) dengan
+  `deploy/set-secret.sh`. Keduanya meminta nilai di terminal, jadi tidak tersimpan di riwayat shell.
 
 ## Lisensi
 
