@@ -64,13 +64,22 @@ Script ini membuat `config.json` dan Scheduled Task **AW Hub Agent** yang berjal
 Run pertama mengirim seluruh riwayat. Contohnya, ±75 hari butuh sekitar 7 menit karena query di aw-server lambat.
 Run berikutnya hanya butuh sekitar 15 detik. Untuk menghapus task: `.\install-windows.ps1 -Uninstall`.
 
-**Linux / macOS:**
+**Linux (systemd)**, dari folder `agent/`:
 
 ```bash
-cp agent/config.example.json agent/config.json   # lalu isi
-crontab -e
-*/15 * * * * /usr/bin/python3 /path/aw-hub/agent/aw_hub_agent.py -c /path/aw-hub/agent/config.json
+./install-linux.sh --server https://aw.contoh.com --token <AW_HUB_INGEST_TOKEN> --device Pribadi
 ```
+
+Script ini membuat `config.json` dan systemd *user* timer `aw-hub-agent.timer` yang berjalan tiap 15 menit
+selama kamu login. Jadwal yang terlewat saat laptop sleep dijalankan begitu laptop menyala.
+Sinkron awal langsung dijalankan. Status: `systemctl --user list-timers | grep aw-hub`,
+log run terakhir: `journalctl --user -u aw-hub-agent -n 20`. Untuk menghapus: `./install-linux.sh --uninstall`.
+
+> **Wayland:** `aw-watcher-window` bawaan ActivityWatch tidak mencatat window di Wayland
+> (default GNOME Debian 12+). Pakai [awatcher](https://github.com/2e3s/awatcher) atau sesi Xorg.
+
+**macOS / tanpa systemd:** salin `config.example.json` → `config.json`, lalu jadwalkan lewat cron:
+`*/15 * * * * /usr/bin/python3 /path/aw-hub/agent/aw_hub_agent.py`.
 
 Opsi `config.json`:
 

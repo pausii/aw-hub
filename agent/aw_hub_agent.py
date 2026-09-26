@@ -17,6 +17,7 @@ import logging
 import re
 import socket
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -98,6 +99,22 @@ def query_active_window(aw_url, win_id, afk_id, a, b, hide_title=None):
     return out
 
 
+def send_with_retry(url, payload, headers, attempts=3):
+    """Kirim ke server; ulangi untuk gangguan sementara (jaringan, 5xx Cloudflare/origin)."""
+    for i in range(attempts):
+        try:
+            return http_json(url, payload, headers=headers, timeout=120)
+        except urllib.error.HTTPError as e:
+            if e.code < 500 or i == attempts - 1:
+                raise
+            log.warning("HTTP %s, coba lagi (%d/%d)", e.code, i + 1, attempts - 1)
+        except (urllib.error.URLError, OSError) as e:
+            if i == attempts - 1:
+                raise
+            log.warning("%s, coba lagi (%d/%d)", e, i + 1, attempts - 1)
+        time.sleep(5 * (i + 1))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-c", "--config", default=str(HERE / "config.json"))
@@ -146,11 +163,11 @@ def main():
         a, b = day, day + 86400
         try:
             events = query_active_window(aw_url, win["id"], afk["id"], a, b, hide_title)
-            res = http_json(
+            res = send_with_retry(
                 f"{server}/api/ingest",
                 {"device": device, "hostname": hostname, "agent_version": VERSION,
                  "period_start": a, "period_end": b, "events": events},
-                headers=auth, timeout=120,
+                auth,
             )
         except urllib.error.HTTPError as e:
             log.error("Server menolak %s: HTTP %s %s", iso(a)[:10], e.code, e.read()[:300])
