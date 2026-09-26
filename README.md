@@ -19,17 +19,22 @@ Laptop pribadi ─┘
 
 ## 1. Server (Linux, Docker)
 
-Prasyarat: Docker + compose plugin, domain/subdomain dengan A record ke IP publik server,
-serta port 80 & 443 terbuka.
+Prasyarat: Docker + compose plugin, dan domain/subdomain dengan A record ke IP publik server.
 
 ```bash
 git clone <repo-ini> aw-hub && cd aw-hub
 cp .env.example .env
 openssl rand -hex 32          # → AW_HUB_INGEST_TOKEN
 nano .env                     # isi domain, token, password dashboard
-docker compose up -d --build
-docker compose logs -f
 ```
+
+Ada dua pilihan, tergantung apakah port 80/443 server sudah dipakai:
+
+- **Sudah ada nginx di host** (mis. di belakang Cloudflare): `docker compose up -d --build`.
+  App hanya listen di `127.0.0.1:8077` (ubah lewat `AW_HUB_PORT`). Pasang vhost dari
+  `deploy/nginx-aw-hub.conf`.
+- **Port 80/443 masih kosong:** `docker compose --profile caddy up -d --build`.
+  Caddy akan mengurus HTTPS Let's Encrypt otomatis untuk `AW_HUB_DOMAIN`.
 
 Buka `https://<domain>` lalu login dengan `AW_HUB_DASH_USER` / `AW_HUB_DASH_PASSWORD`.
 Database ada di `./data/aw-hub.db`. Untuk backup, cukup salin file itu.

@@ -6,12 +6,15 @@ services:
     volumes:
       - ./data:/data
       - ./config:/config:ro   # edit config/categories.json → langsung terbaca, tanpa restart
-    expose:
-      - "8000"
+    # hanya localhost: diakses lewat reverse proxy (nginx host, atau caddy di bawah)
+    ports:
+      - "127.0.0.1:${AW_HUB_PORT:-8077}:8000"
 
-  # HTTPS otomatis (Let's Encrypt) untuk domain di AW_HUB_DOMAIN
+  # Opsional — HTTPS otomatis (Let's Encrypt) bila port 80/443 server masih kosong:
+  #   docker compose --profile caddy up -d
   caddy:
     image: caddy:2
+    profiles: ["caddy"]
     restart: unless-stopped
     env_file: .env
     ports:
