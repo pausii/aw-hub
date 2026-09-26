@@ -2,11 +2,14 @@
 import base64
 import hashlib
 import hmac
+import re
 import secrets
 import threading
 import time
 from collections import deque
 from pathlib import Path
+
+import bcrypt
 
 COOKIE_NAME = "awhub_session"
 SESSION_TTL = 30 * 86400
@@ -19,6 +22,31 @@ IP_LOCK_MAX = 24 * 3600
 GLOBAL_MAX_FAILS = 30         # total gagal dari semua IP dalam jendela → semua login ditahan sementara
 GLOBAL_WINDOW = 15 * 60
 GLOBAL_LOCK = 15 * 60
+
+
+BCRYPT_RE = re.compile(r"^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$")
+
+
+class PasswordCheck:
+    """AW_HUB_DASH_PASSWORD berisi password biasa ATAU hash bcrypt ($2a$/$2b$/$2y$...)."""
+
+    def __init__(self, value: str):
+        self.value = value
+        self.is_hash = bool(BCRYPT_RE.match(value))
+        if value.startswith("$2") and not self.is_hash:
+            # tanda umum: "$" di hash ter-interpolasi Docker Compose → hash terpotong
+            raise SystemExit("AW_HUB_DASH_PASSWORD tampak seperti hash bcrypt tapi tidak valid. "
+                             "Di .env, bungkus hash dengan tanda kutip tunggal: AW_HUB_DASH_PASSWORD='$2b$12$...'")
+
+    def verify(self, password: str) -> bool:
+        pw = password.encode()
+        if self.is_hash:
+            try:
+                # bcrypt hanya memakai 72 byte pertama; potong eksplisit (bcrypt>=4.1 menolak yang lebih panjang)
+                return bcrypt.checkpw(pw[:72], self.value.encode())
+            except ValueError:
+                return False
+        return secrets.compare_digest(pw, self.value.encode())
 
 
 class Sessions:

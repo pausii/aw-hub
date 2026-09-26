@@ -45,8 +45,10 @@ if not INGEST_TOKEN or not DASH_PASSWORD:
 
 app = FastAPI(title="AW Hub", docs_url=None, redoc_url=None, openapi_url=None)
 _db_lock = threading.Lock()
+password_check = auth.PasswordCheck(DASH_PASSWORD)
+# kunci sesi diturunkan dari nilai env (password atau hash) → mengganti password membatalkan semua sesi
 sessions = auth.Sessions(auth.load_secret(DB_PATH.parent / "secret.key", os.environ.get("AW_HUB_SECRET", "")),
-                         DASH_PASSWORD)
+                         DASH_USER + "|" + DASH_PASSWORD)
 limiter = auth.LoginLimiter()
 
 
@@ -117,8 +119,9 @@ def login(p: LoginPayload, request: Request):
     if not allowed:
         return JSONResponse({"detail": "Terlalu banyak percobaan.", "retry_after": wait}, status_code=429,
                             headers={"Retry-After": str(wait)})
+    # password selalu diperiksa (juga saat username salah) agar waktu respons tidak membocorkan username
     ok_user = secrets.compare_digest(p.username.encode(), DASH_USER.encode())
-    ok_pass = secrets.compare_digest(p.password.encode(), DASH_PASSWORD.encode())
+    ok_pass = password_check.verify(p.password)
     if not (ok_user and ok_pass):
         time.sleep(0.4)  # perlambat tebakan beruntun
         remaining, lock = limiter.fail(ip)

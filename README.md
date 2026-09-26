@@ -41,6 +41,14 @@ Login dibatasi **5 percobaan gagal per IP per 15 menit**. Kunci berikutnya berli
 Ada juga batas global 30 kegagalan per 15 menit dari semua IP. Batas global ini melindungi dari serangan
 terdistribusi, dengan konsekuensi login ikut tertahan sementara saat terjadi serangan. Sesi berlaku 30 hari.
 Mengganti password akan mengeluarkan semua sesi.
+
+`AW_HUB_DASH_PASSWORD` boleh berisi password biasa **atau hash bcrypt** (disarankan, karena password asli tidak tersimpan di server). Cara membuat hash:
+
+```bash
+docker compose exec app python hashpw.py      # ketik password (tanpa echo)
+```
+
+Tempel hasilnya ke `.env` **dengan kutip tunggal**, yaitu `AW_HUB_DASH_PASSWORD='$2b$12$...'`, lalu jalankan `docker compose up -d`. Tanpa kutip, Docker Compose akan menganggap `$` sebagai variabel sehingga hash-nya rusak. Dalam kasus itu server menolak start dan menampilkan pesan yang menjelaskan masalahnya.
 Database ada di `./data/aw-hub.db`. Untuk backup, cukup salin file itu.
 
 ### Tanpa Docker (sudah punya nginx/caddy sendiri)
