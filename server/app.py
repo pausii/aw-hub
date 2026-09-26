@@ -307,6 +307,7 @@ def stats(
     load_categories()
 
     cells = defaultdict(float)                              # (hari, jam, device) -> detik
+    cat_days = defaultdict(float)                           # (hari, kategori) -> detik
     per_device = defaultdict(float)
     per_cat = defaultdict(float)
     per_app = defaultdict(lambda: defaultdict(float))      # app -> device -> detik
@@ -321,14 +322,24 @@ def stats(
         per_title[(app_name, title, cat)] += dur
         for d, h, sec in split_hours(s, t):
             cells[(d, h, dev)] += sec
+            cat_days[(d, cat)] += sec
 
     series = defaultdict(lambda: defaultdict(float))       # periode -> device -> detik
     per_day = defaultdict(float)
     per_hour = defaultdict(lambda: defaultdict(float))     # jam lokal -> device -> detik
+    heat = defaultdict(float)                               # (hari-dalam-minggu 0=Senin, jam) -> detik
     for (d, h, dev), sec in cells.items():
         series[period_key(d, group)][dev] += sec
         per_day[d] += sec
         per_hour[h][dev] += sec
+        heat[(d.weekday(), h)] += sec
+    cat_series = defaultdict(lambda: defaultdict(float))   # periode -> kategori -> detik
+    for (d, cat), sec in cat_days.items():
+        cat_series[period_key(d, group)][cat] += sec
+    # jumlah kemunculan tiap hari-dalam-minggu di rentang → pembagi rata-rata heatmap
+    weekday_count = [0] * 7
+    for i in range((d_to - d_from).days + 1):
+        weekday_count[(d_from + timedelta(days=i)).weekday()] += 1
 
     total = sum(per_device.values())
     n_days = (d_to - d_from).days + 1
@@ -364,6 +375,13 @@ def stats(
             for (a, ti, c), v in sorted(per_title.items(), key=lambda kv: -kv[1])[:top]
         ],
         "hours": [{"hour": h, "per_device": dict(per_hour.get(h, {}))} for h in range(24)],
+        "heat": {
+            "weekday_count": weekday_count,
+            "cells": [[heat.get((wd, h), 0.0) for h in range(24)] for wd in range(7)],
+        },
+        "category_series": [
+            {"period": k, "per_category": dict(cat_series.get(k, {}))} for k in iter_periods(d_from, d_to, group)
+        ],
     }
 
 

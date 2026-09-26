@@ -24,6 +24,8 @@
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
   --s-none: #b5b3ab;
+  /* heatmap: satu hue (biru), makin gelap = makin aktif; q0 = tidak ada data */
+  --q0: #f0efec; --q1: #cde2fb; --q2: #9ec5f4; --q3: #5598e7; --q4: #256abf; --q5: #104281;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -34,6 +36,7 @@
     --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+    --q0: #232322; --q1: #173a66; --q2: #1c5cab; --q3: #2a78d6; --q4: #5598e7; --q5: #9ec5f4;
   }
 }
 :root[data-theme="dark"] {
@@ -44,6 +47,7 @@
   --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+    --q0: #232322; --q1: #173a66; --q2: #1c5cab; --q3: #2a78d6; --q4: #5598e7; --q5: #9ec5f4;
 }
 * { box-sizing: border-box; }
 body {
@@ -114,6 +118,14 @@ input[type=date] {
 .split span { display: inline-flex; align-items: center; gap: 6px; }
 .split b { color: var(--ink); font-weight: 600; margin-left: auto; font-variant-numeric: tabular-nums; }
 
+.seg.sm button { font-size: 12px; padding: 3px 9px; }
+.donut-wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.donut-wrap #categories { flex: 1; min-width: 220px; }
+.kpi.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+.kpi.hero .label, .kpi.hero .delta { grid-column: 1 / -1; }
+.kpi.hero .spark { align-self: end; margin-bottom: 8px; }
+.kpi.hero .value { white-space: nowrap; }
+@media (max-width: 900px) { .kpi.hero .spark { display: none; } }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 
@@ -186,7 +198,12 @@ tr:last-child td { border-bottom: 0; }
     <section class="card c12">
       <div class="card-h">
         <h2>Waktu aktif</h2><span class="sub" id="seriesSub"></span>
-        <div class="right"><button class="link" id="seriesToggle">Lihat tabel</button></div>
+        <div class="right">
+          <div class="seg sm" data-mode="seriesMode" aria-label="Bentuk grafik">
+            <button data-v="line">Garis</button><button data-v="bar">Batang</button>
+          </div>
+          <button class="link" id="seriesToggle">Lihat tabel</button>
+        </div>
       </div>
       <div id="seriesChart"></div>
       <div id="seriesTable" class="hidden"></div>
@@ -208,12 +225,29 @@ tr:last-child td { border-bottom: 0; }
 
     <section class="card c6">
       <div class="card-h"><h2>Kategori</h2><span class="sub">bagian dari total waktu aktif</span></div>
-      <div id="categories" class="bars"></div>
+      <div class="donut-wrap">
+        <div id="catDonut"></div>
+        <div id="categories" class="bars"></div>
+      </div>
     </section>
 
     <section class="card c6">
-      <div class="card-h"><h2>Pola jam</h2><span class="sub">total per jam dalam rentang</span></div>
+      <div class="card-h">
+        <h2>Pola jam</h2><span class="sub" id="hoursSub"></span>
+        <div class="right">
+          <div class="seg sm" data-mode="hourMode" aria-label="Bentuk grafik">
+            <button data-v="heat">Heatmap</button><button data-v="bar">Batang</button>
+          </div>
+        </div>
+      </div>
       <div id="hours"></div>
+      <div class="legend" id="hoursLegend"></div>
+    </section>
+
+    <section class="card c12">
+      <div class="card-h"><h2>Tren kategori</h2><span class="sub" id="catTrendSub"></span></div>
+      <div id="catTrend"></div>
+      <div class="legend" id="catTrendLegend"></div>
     </section>
 
     <section class="card c6">
@@ -241,7 +275,8 @@ const PRESETS = [
 const GROUPS = [["day", "Harian"], ["week", "Mingguan"], ["month", "Bulanan"]];
 
 const S = { from: null, to: null, group: "day", preset: "7d", hidden: new Set(), tlDay: null,
-            today: null, devices: [], cats: [], stats: null, tl: null, dayStartHour: 4 };
+            today: null, devices: [], cats: [], stats: null, tl: null, dayStartHour: 4,
+            seriesMode: "line", hourMode: "heat" };
 
 // ---------- util tanggal (string YYYY-MM-DD, aritmetika di UTC agar bebas zona waktu browser)
 const toD = (s) => new Date(s + "T00:00:00Z");
@@ -325,12 +360,16 @@ function readHash() {
   if (p.get("group")) S.group = p.get("group");
   if (p.get("hide")) S.hidden = new Set(p.get("hide").split(","));
   if (p.get("day")) S.tlDay = p.get("day");
+  if (p.get("sm") === "bar") S.seriesMode = "bar";
+  if (p.get("hm") === "bar") S.hourMode = "bar";
 }
 function writeHash() {
   const p = new URLSearchParams({ from: S.from, to: S.to, group: S.group });
   if (S.preset) p.set("preset", S.preset);
   if (S.hidden.size) p.set("hide", [...S.hidden].join(","));
   if (S.tlDay) p.set("day", S.tlDay);
+  if (S.seriesMode !== "line") p.set("sm", S.seriesMode);
+  if (S.hourMode !== "heat") p.set("hm", S.hourMode);
   history.replaceState(null, "", "#" + p);
 }
 
@@ -345,6 +384,8 @@ function renderControls() {
   $("#devChips").innerHTML = S.devices.map((d) =>
     `<button class="chip" data-d="${esc(d.name)}" aria-pressed="${!S.hidden.has(d.name)}">
        <span class="sw" style="background:${devColor(d.name)}"></span>${esc(d.name)}</button>`).join("");
+  document.querySelectorAll(".seg[data-mode] button").forEach((b) =>
+    b.setAttribute("aria-pressed", S[b.parentElement.dataset.mode] === b.dataset.v));
   $("#rangeLabel").textContent = S.from === S.to ? fmtDate(S.from, true) : `${fmtDate(S.from)} – ${fmtDate(S.to, true)}`;
 }
 $("#presets").addEventListener("click", (e) => {
@@ -387,7 +428,8 @@ function renderKpis(st) {
   const [bd, bsec] = st.busiest_day;
   $("#kpis").innerHTML = `
     <div class="card kpi hero"><div class="label">Total waktu aktif</div>
-      <div class="value">${fmtDur(st.total)}</div><div class="delta">${deltaHtml}</div></div>
+      <div class="value">${fmtDur(st.total)}</div>${sparkline(st.series.map((r) => devs.reduce((a, d) => a + (r.per_device[d] || 0), 0)))}
+      <div class="delta">${deltaHtml}</div></div>
     <div class="card kpi"><div class="label">Rata-rata per hari aktif</div>
       <div class="value">${fmtDur(st.avg_per_active_day)}</div>
       <div class="delta">${st.active_days} dari ${st.range.days} hari aktif</div></div>
@@ -397,7 +439,7 @@ function renderKpis(st) {
       <div class="delta">${bd ? fmtDate(bd, true) : ""}</div></div>`;
 }
 
-// ---------- stacked columns (dipakai grafik periode & pola jam)
+// ---------- skala & sumbu bersama
 function niceStep(maxH) {
   for (const s of [0.25, 0.5, 1, 2, 4, 5, 10, 20, 25, 50, 100, 200, 250, 500]) if (maxH / s <= 5) return s;
   return 1000;
@@ -406,78 +448,286 @@ function roundedTop(x, y, w, h, r) {
   r = Math.min(r, h, w / 2);
   return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
 }
-function stackedColumns(el, rows, { labelFn, tipTitle, height = 220 }) {
-  const devs = visibleDevices();
-  const W = Math.max(280, el.clientWidth), H = height, m = { l: 34, r: 4, t: 10, b: 24 };
+// kerangka chart berbasis periode: sumbu Y (jam) + label X; posisi titik = tengah band
+function frame(el, rows, maxSec, { labelFn, height }) {
+  const W = Math.max(280, el.clientWidth), H = height, m = { l: 34, r: 8, t: 10, b: 24 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const totals = rows.map((r) => devs.reduce((a, d) => a + (r.per_device[d] || 0), 0));
-  const maxH = Math.max(1 / 60, ...totals.map((t) => t / 3600));
+  const maxH = Math.max(1 / 60, maxSec / 3600);
   const step = niceStep(maxH), top = Math.ceil(maxH / step) * step;
-  const y = (h) => m.t + ih - (h / top) * ih;
-  const band = iw / rows.length, bw = Math.min(24, Math.max(2, band * 0.7)), GAP = 2;
-  const every = Math.ceil(rows.length / Math.max(1, Math.floor(iw / 46)));
-  let g = "";
+  const band = iw / Math.max(1, rows.length);
+  const f = {
+    W, H, m, iw, ih, band,
+    y: (sec) => m.t + ih - (sec / 3600 / top) * ih,
+    cx: (i) => m.l + band * i + band / 2,
+    grid: "",
+  };
   for (let v = 0; v <= top + 1e-9; v += step) {
-    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(${v ? "--grid" : "--axis"})"/>`;
-    g += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(2)}j</text>`;
+    f.grid += `<line x1="${m.l}" x2="${W - m.r}" y1="${f.y(v * 3600)}" y2="${f.y(v * 3600)}" stroke="var(${v ? "--grid" : "--axis"})"/>`;
+    f.grid += `<text x="${m.l - 6}" y="${f.y(v * 3600) + 4}" text-anchor="end">${+v.toFixed(2)}j</text>`;
   }
+  const every = Math.ceil(rows.length / Math.max(1, Math.floor(iw / 46)));
+  rows.forEach((r, i) => {
+    if (i % every === 0) f.grid += `<text x="${f.cx(i)}" y="${H - 6}" text-anchor="middle">${esc(labelFn(r, true))}</text>`;
+  });
+  return f;
+}
+// tooltip satu-untuk-semua-seri pada satu periode
+function seriesTip(ev, title, keys, colorFn, vals, showTotal) {
+  const rows = keys.filter((k) => vals[k]).map((k) => tipRow(colorFn(k), k, fmtDur(vals[k])));
+  const total = keys.reduce((a, k) => a + (vals[k] || 0), 0);
+  showTip(ev, `<div class="tt">${esc(title)}</div>${rows.join("") || '<div class="mt">Tidak ada aktivitas</div>'}` +
+    (showTotal && rows.length > 1 ? `<div class="row" style="margin-top:4px">Total<b>${fmtDur(total)}</b></div>` : ""));
+}
+
+// ---------- kolom bertumpuk
+function stackedColumns(el, rows, { keys, colorFn, valFn, labelFn, tipTitle, height = 220 }) {
+  const totals = rows.map((r) => keys.reduce((a, k) => a + (valFn(r, k) || 0), 0));
+  const f = frame(el, rows, Math.max(...totals, 0), { labelFn, height });
+  const bw = Math.min(24, Math.max(2, f.band * 0.7)), GAP = 2;
   let marks = "", hits = "";
   rows.forEach((r, i) => {
-    const cx = m.l + band * i + band / 2, x = cx - bw / 2;
+    const x = f.cx(i) - bw / 2;
     let acc = 0;
-    const present = devs.filter((d) => (r.per_device[d] || 0) > 0);
-    present.forEach((d, j) => {
-      const h0 = acc / 3600, h1 = (acc += r.per_device[d]) / 3600;
-      let yTop = y(h1), yBot = y(h0) - (j ? GAP : 0), hh = yBot - yTop;
+    const present = keys.filter((k) => (valFn(r, k) || 0) > 0);
+    present.forEach((k, j) => {
+      const yBot = f.y(acc) - (j ? GAP : 0), yTop = f.y((acc += valFn(r, k)));
+      const hh = yBot - yTop;
       if (hh <= 0) return;
       marks += j === present.length - 1
-        ? `<path d="${roundedTop(x, yTop, bw, hh, 4)}" fill="${devColor(d)}"/>`
-        : `<rect x="${x}" y="${yTop}" width="${bw}" height="${hh}" fill="${devColor(d)}"/>`;
+        ? `<path d="${roundedTop(x, yTop, bw, hh, 4)}" fill="${colorFn(k)}"/>`
+        : `<rect x="${x}" y="${yTop}" width="${bw}" height="${hh}" fill="${colorFn(k)}"/>`;
     });
-    if (i % every === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${esc(labelFn(r, true))}</text>`;
-    hits += `<rect class="hit" data-i="${i}" x="${m.l + band * i}" y="${m.t}" width="${band}" height="${ih}" fill="transparent"/>`;
+    hits += `<rect class="hit" data-i="${i}" x="${f.m.l + f.band * i}" y="${f.m.t}" width="${f.band}" height="${f.ih}" fill="transparent"/>`;
   });
-  el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Grafik waktu aktif">${g}${marks}${hits}</svg>`;
+  el.innerHTML = `<svg width="${f.W}" height="${f.H}" role="img">${f.grid}${marks}${hits}</svg>`;
   el.querySelectorAll(".hit").forEach((h) => {
+    const r = rows[+h.dataset.i];
     h.addEventListener("mousemove", (ev) => {
-      const r = rows[+h.dataset.i];
-      showTip(ev, `<div class="tt">${esc(tipTitle(r))}</div>` +
-        devs.map((d) => tipRow(devColor(d), d, fmtDur(r.per_device[d]))).join("") +
-        (devs.length > 1 ? `<div class="row" style="margin-top:4px">Total<b>${fmtDur(totals[+h.dataset.i])}</b></div>` : ""));
+      h.setAttribute("fill", "var(--wash)");
+      seriesTip(ev, tipTitle(r), keys, colorFn, Object.fromEntries(keys.map((k) => [k, valFn(r, k)])), true);
     });
-    h.addEventListener("mouseleave", hideTip);
+    h.addEventListener("mouseleave", () => { h.setAttribute("fill", "transparent"); hideTip(); });
   });
 }
+
+// crosshair bersama untuk garis & area: snap ke periode terdekat
+function attachCrosshair(el, f, rows, onMove) {
+  const svg = el.querySelector("svg"), cross = svg.querySelector(".cross");
+  svg.addEventListener("mousemove", (ev) => {
+    const px = ev.clientX - svg.getBoundingClientRect().left;
+    const i = Math.max(0, Math.min(rows.length - 1, Math.round((px - f.m.l - f.band / 2) / f.band)));
+    cross.setAttribute("x1", f.cx(i)); cross.setAttribute("x2", f.cx(i)); cross.style.opacity = 1;
+    onMove(ev, i);
+  });
+  svg.addEventListener("mouseleave", () => { cross.style.opacity = 0; onMove(null, -1); hideTip(); });
+}
+
+// ---------- garis (tren per perangkat + total)
+function lineChart(el, rows, { keys, colorFn, valFn, labelFn, tipTitle, height = 220, totalKey }) {
+  const series = keys.map((k) => ({ k, color: colorFn(k), vals: rows.map((r) => valFn(r, k) || 0) }));
+  if (totalKey) {
+    series.push({ k: totalKey, color: "var(--ink-2)",
+                  vals: rows.map((_, i) => series.reduce((a, s) => a + s.vals[i], 0)) });
+  }
+  const f = frame(el, rows, Math.max(0, ...series.flatMap((s) => s.vals)), { labelFn, height });
+  const pts = (s) => s.vals.map((v, i) => `${f.cx(i)},${f.y(v)}`).join(" ");
+  const last = rows.length - 1;
+  let marks = "";
+  // area wash hanya untuk seri tunggal (banyak wash bertumpuk jadi keruh)
+  if (series.length === 1 && rows.length > 1) {
+    marks += `<polygon points="${f.cx(0)},${f.y(0)} ${pts(series[0])} ${f.cx(last)},${f.y(0)}" fill="${series[0].color}" opacity=".10"/>`;
+  }
+  for (const s of series) {
+    marks += `<polyline points="${pts(s)}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    marks += `<circle cx="${f.cx(last)}" cy="${f.y(s.vals[last])}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`;
+  }
+  const dots = series.map((s, j) =>
+    `<circle class="hd" data-j="${j}" r="4.5" fill="${s.color}" stroke="var(--surface)" stroke-width="2" style="opacity:0"/>`).join("");
+  el.innerHTML = `<svg width="${f.W}" height="${f.H}" role="img">${f.grid}
+    <line class="cross" y1="${f.m.t}" y2="${f.m.t + f.ih}" stroke="var(--axis)" style="opacity:0"/>${marks}${dots}
+    <rect x="${f.m.l}" y="${f.m.t}" width="${f.iw}" height="${f.ih}" fill="transparent"/></svg>`;
+  const hd = el.querySelectorAll(".hd");
+  const allKeys = series.map((s) => s.k), colorOf = Object.fromEntries(series.map((s) => [s.k, s.color]));
+  attachCrosshair(el, f, rows, (ev, i) => {
+    hd.forEach((c) => {
+      if (i < 0) { c.style.opacity = 0; return; }
+      const s = series[+c.dataset.j];
+      c.setAttribute("cx", f.cx(i)); c.setAttribute("cy", f.y(s.vals[i])); c.style.opacity = 1;
+    });
+    if (i >= 0) seriesTip(ev, tipTitle(rows[i]), allKeys, (k) => colorOf[k],
+                          Object.fromEntries(series.map((s) => [s.k, s.vals[i]])), false);
+  });
+}
+
+// ---------- area bertumpuk (komposisi kategori per periode)
+function stackedArea(el, rows, { keys, colorFn, valFn, labelFn, tipTitle, height = 220 }) {
+  if (rows.length < 2) return stackedColumns(el, rows, { keys, colorFn, valFn, labelFn, tipTitle, height });
+  const cum = rows.map(() => 0), layers = [];
+  for (const k of keys) {
+    const lo = cum.slice();
+    rows.forEach((r, i) => (cum[i] += valFn(r, k) || 0));
+    layers.push({ k, lo, hi: cum.slice() });
+  }
+  const f = frame(el, rows, Math.max(0, ...cum), { labelFn, height });
+  let marks = "";
+  for (const L of layers) {
+    const up = L.hi.map((v, i) => `${f.cx(i)},${f.y(v)}`);
+    const down = L.lo.map((v, i) => `${f.cx(i)},${f.y(v)}`).reverse();
+    // tepi berwarna surface = celah antar lapisan (bukan border)
+    marks += `<polygon points="${up.join(" ")} ${down.join(" ")}" fill="${colorFn(L.k)}" stroke="var(--surface)" stroke-width="1.5" stroke-linejoin="round"/>`;
+  }
+  el.innerHTML = `<svg width="${f.W}" height="${f.H}" role="img">${f.grid}${marks}
+    <line class="cross" y1="${f.m.t}" y2="${f.m.t + f.ih}" stroke="var(--ink-2)" style="opacity:0"/>
+    <rect x="${f.m.l}" y="${f.m.t}" width="${f.iw}" height="${f.ih}" fill="transparent"/></svg>`;
+  attachCrosshair(el, f, rows, (ev, i) => {
+    if (i < 0) return;
+    const r = rows[i], sorted = keys.slice().sort((a, b) => (valFn(r, b) || 0) - (valFn(r, a) || 0));
+    seriesTip(ev, tipTitle(r), sorted, colorFn, Object.fromEntries(keys.map((k) => [k, valFn(r, k)])), true);
+  });
+}
+
+// ---------- donut (bagian dari total, maks 6 segmen)
+function donut(el, items, total) {
+  const MAX = 6;
+  let segs = items.filter((c) => c.sec > 0);
+  if (segs.length > MAX) {
+    const rest = segs.slice(MAX - 1);
+    segs = [...segs.slice(0, MAX - 1), { name: "Lain-lain", sec: rest.reduce((a, c) => a + c.sec, 0),
+                                         members: rest.map((c) => c.name), color: "var(--s-none)" }];
+  }
+  const D = 168, R = 64, SW = 22, C = 2 * Math.PI * R, GAP = segs.length > 1 ? 2 : 0;
+  let off = 0, arcs = "";
+  segs.forEach((c, i) => {
+    const len = (c.sec / total) * C, draw = Math.max(0.5, len - GAP);
+    arcs += `<circle class="arc" data-i="${i}" cx="${D / 2}" cy="${D / 2}" r="${R}" fill="none" stroke="${c.color || catColor(c.name)}"
+      stroke-width="${SW}" stroke-dasharray="${draw} ${C - draw}" stroke-dashoffset="${-off}"
+      transform="rotate(-90 ${D / 2} ${D / 2})"/>`;
+    off += len;
+  });
+  el.innerHTML = `<svg width="${D}" height="${D}" role="img" aria-label="Donut kategori">${arcs}
+    <text x="${D / 2}" y="${D / 2 - 2}" text-anchor="middle" style="fill:var(--ink);font-size:18px;font-weight:600">${fmtDur(total)}</text>
+    <text x="${D / 2}" y="${D / 2 + 16}" text-anchor="middle">aktif</text></svg>`;
+  el.querySelectorAll(".arc").forEach((a) => {
+    const c = segs[+a.dataset.i];
+    a.addEventListener("mousemove", (ev) => {
+      a.setAttribute("stroke-width", SW + 4);
+      showTip(ev, tipRow(c.color || catColor(c.name), c.name, `${fmtDur(c.sec)} · ${Math.round((c.sec / total) * 100)}%`) +
+        (c.members ? `<div class="mt" style="margin-top:4px">${esc(c.members.join(", "))}</div>` : ""));
+    });
+    a.addEventListener("mouseleave", () => { a.setAttribute("stroke-width", SW); hideTip(); });
+  });
+}
+
+// ---------- heatmap hari × jam (rata-rata menit aktif per jam)
+const HEAT_BINS = [5, 15, 30, 45]; // menit: <5 → q1, 5–15 → q2, ..., ≥45 → q5
+function heatmap(el, heat) {
+  const order = [...Array(24).keys()].map((h) => (S.dayStartHour + h) % 24);
+  const W = Math.max(280, el.clientWidth), m = { l: 34, r: 4, t: 4, b: 22 }, gap = 2;
+  const cw = (W - m.l - m.r) / 24, ch = Math.min(26, Math.max(16, cw * 0.9)), H = m.t + 7 * ch + m.b;
+  const NAMES = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+  const FULL = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+  let g = "", cells = "";
+  NAMES.forEach((n, wd) => { g += `<text x="${m.l - 6}" y="${m.t + wd * ch + ch / 2 + 4}" text-anchor="end">${n}</text>`; });
+  order.forEach((h, j) => {
+    if (j % (cw < 22 ? 3 : 2) === 0) g += `<text x="${m.l + j * cw + cw / 2}" y="${H - 6}" text-anchor="middle">${String(h).padStart(2, "0")}</text>`;
+  });
+  for (let wd = 0; wd < 7; wd++) {
+    const n = heat.weekday_count[wd];
+    order.forEach((h, j) => {
+      const avgMin = n ? heat.cells[wd][h] / n / 60 : 0;
+      const q = avgMin <= 0 ? 0 : 1 + HEAT_BINS.filter((b) => avgMin >= b).length;
+      cells += `<rect class="hc" data-w="${wd}" data-h="${h}" x="${m.l + j * cw + gap / 2}" y="${m.t + wd * ch + gap / 2}"
+        width="${cw - gap}" height="${ch - gap}" rx="3" fill="var(--q${q})"/>`;
+    });
+  }
+  el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Heatmap ritme mingguan">${g}${cells}</svg>`;
+  el.querySelectorAll(".hc").forEach((c) => {
+    c.addEventListener("mousemove", (ev) => {
+      const wd = +c.dataset.w, h = +c.dataset.h, n = heat.weekday_count[wd], sec = heat.cells[wd][h];
+      c.setAttribute("stroke", "var(--ink)"); c.setAttribute("stroke-width", "1.5");
+      showTip(ev, `<div class="tt">${FULL[wd]} · ${String(h).padStart(2, "0")}:00–${String((h + 1) % 24).padStart(2, "0")}:00</div>
+        <div class="row">Rata-rata per hari<b>${n ? fmtDur(sec / n) : "–"}</b></div>
+        <div class="row">Total (${n} hari ${FULL[wd]})<b>${fmtDur(sec)}</b></div>`);
+    });
+    c.addEventListener("mouseleave", () => { c.removeAttribute("stroke"); hideTip(); });
+  });
+}
+function heatLegend() {
+  const labels = ["0", "<5m", "5–15m", "15–30m", "30–45m", "≥45m"];
+  return `<span>Rata-rata aktif per jam:</span>` +
+    labels.map((l, q) => `<span><i class="sw" style="background:var(--q${q})"></i>${l}</span>`).join("");
+}
+
+// sparkline kecil untuk tile total
+function sparkline(vals) {
+  if (vals.length < 2) return "";
+  const W = 96, H = 32, max = Math.max(...vals, 1);
+  const x = (i) => 3 + (i / (vals.length - 1)) * (W - 6), y = (v) => H - 4 - (v / max) * (H - 8);
+  const last = vals.length - 1;
+  return `<svg class="spark" width="${W}" height="${H}" aria-hidden="true">
+    <polyline points="${vals.map((v, i) => `${x(i)},${y(v)}`).join(" ")}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="${x(last)}" cy="${y(vals[last])}" r="3.5" fill="var(--dev-1)" stroke="var(--surface)" stroke-width="2"/></svg>`;
+}
+
+// ---------- render per kartu
+const periodOpts = (g) => ({ labelFn: (r, short) => periodLabel(r.period, g, short),
+                             tipTitle: (r) => periodLabel(r.period, g, false) });
+const devLegend = () => visibleDevices().map((d) => `<span><i class="sw" style="background:${devColor(d)}"></i>${esc(d)}</span>`);
 
 function renderSeries(st) {
   const g = st.range.group, devs = visibleDevices();
   $("#seriesSub").textContent = { day: "per hari", week: "per minggu (mulai Senin)", month: "per bulan" }[g];
-  stackedColumns($("#seriesChart"), st.series, {
-    labelFn: (r, short) => periodLabel(r.period, g, short), tipTitle: (r) => periodLabel(r.period, g, false),
-  });
-  $("#seriesLegend").innerHTML = devs.length > 1
-    ? devs.map((d) => `<span><i class="sw" style="background:${devColor(d)}"></i>${esc(d)}</span>`).join("") : "";
+  const opts = { keys: devs, colorFn: devColor, valFn: (r, k) => r.per_device[k], ...periodOpts(g) };
+  if (S.seriesMode === "bar") stackedColumns($("#seriesChart"), st.series, opts);
+  else lineChart($("#seriesChart"), st.series, { ...opts, totalKey: devs.length > 1 ? "Total" : null });
+  const legend = devLegend();
+  if (S.seriesMode !== "bar" && devs.length > 1) legend.push(`<span><i class="sw" style="background:var(--ink-2);height:2px"></i>Total</span>`);
+  $("#seriesLegend").innerHTML = devs.length > 1 ? legend.join("") : "";
   $("#seriesTable").innerHTML = `<table><thead><tr><th>Periode</th>${devs.map((d) => `<th class="n">${esc(d)}</th>`).join("")}<th class="n">Total</th></tr></thead><tbody>` +
     st.series.map((r) => `<tr><td>${esc(periodLabel(r.period, g, false))}</td>${devs.map((d) => `<td class="n">${fmtDur(r.per_device[d])}</td>`).join("")}<td class="n">${fmtDur(devs.reduce((a, d) => a + (r.per_device[d] || 0), 0))}</td></tr>`).join("") +
     `</tbody></table>`;
 }
 
 function renderHours(st) {
-  const s = S.dayStartHour, rows = [...st.hours.slice(s), ...st.hours.slice(0, s)];
-  stackedColumns($("#hours"), rows, {
-    height: 180,
-    labelFn: (r) => String(r.hour).padStart(2, "0"),
-    tipTitle: (r) => `${String(r.hour).padStart(2, "0")}:00 – ${String((r.hour + 1) % 24).padStart(2, "0")}:00`,
-  });
+  if (S.hourMode === "bar") {
+    const s = S.dayStartHour, rows = [...st.hours.slice(s), ...st.hours.slice(0, s)];
+    stackedColumns($("#hours"), rows, {
+      keys: visibleDevices(), colorFn: devColor, valFn: (r, k) => r.per_device[k], height: 200,
+      labelFn: (r) => String(r.hour).padStart(2, "0"),
+      tipTitle: (r) => `${String(r.hour).padStart(2, "0")}:00 – ${String((r.hour + 1) % 24).padStart(2, "0")}:00`,
+    });
+    $("#hoursSub").textContent = "total per jam dalam rentang";
+    $("#hoursLegend").innerHTML = visibleDevices().length > 1 ? devLegend().join("") : "";
+  } else {
+    heatmap($("#hours"), st.heat);
+    $("#hoursSub").textContent = "ritme mingguan: hari × jam";
+    $("#hoursLegend").innerHTML = heatLegend();
+  }
 }
 
 function renderCategories(st) {
   const total = st.total || 1, max = Math.max(1, ...st.categories.map((c) => c.sec));
-  $("#categories").innerHTML = st.categories.length ? st.categories.map((c) => `
+  if (!st.categories.length) {
+    $("#catDonut").innerHTML = "";
+    $("#categories").innerHTML = `<div class="empty">Belum ada data</div>`;
+    return;
+  }
+  donut($("#catDonut"), st.categories, total);
+  $("#categories").innerHTML = st.categories.map((c) => `
     <div class="bar-row"><div class="name"><span class="sw" style="background:${catColor(c.name)}"></span>${esc(c.name)}</div>
       <div class="track"><div class="fill" style="width:${(c.sec / max) * 100}%;background:${catColor(c.name)}"></div></div>
-      <div class="num">${fmtDur(c.sec)} <span class="m">· ${Math.round((c.sec / total) * 100)}%</span></div></div>`).join("")
-    : `<div class="empty">Belum ada data</div>`;
+      <div class="num">${fmtDur(c.sec)} <span class="m">· ${Math.round((c.sec / total) * 100)}%</span></div></div>`).join("");
+}
+
+function renderCatTrend(st) {
+  // urutan lapisan mengikuti categories.json agar warna & posisi stabil antar-filter
+  const present = new Set(st.categories.map((c) => c.name));
+  const keys = S.cats.map((c) => c.name).filter((n) => present.has(n));
+  $("#catTrendSub").textContent = { day: "per hari", week: "per minggu", month: "per bulan" }[st.range.group];
+  stackedArea($("#catTrend"), st.category_series, {
+    keys, colorFn: catColor, valFn: (r, k) => r.per_category[k], ...periodOpts(st.range.group),
+  });
+  $("#catTrendLegend").innerHTML = keys.map((k) => `<span><i class="sw" style="background:${catColor(k)}"></i>${esc(k)}</span>`).join("");
 }
 
 function renderApps(st) {
@@ -566,6 +816,17 @@ function renderSync() {
     `<span title="Sinkron terakhir"><b>${esc(d.name)}</b> sync ${ago(d.last_sync)}</span>`).join("");
 }
 
+function renderAll(st) {
+  renderKpis(st); renderSeries(st); renderHours(st); renderCategories(st); renderCatTrend(st);
+  renderApps(st); renderTitles(st);
+}
+// toggle bentuk chart: cukup render ulang dari data yang sudah ada, tanpa fetch
+document.querySelectorAll(".seg[data-mode]").forEach((seg) => seg.addEventListener("click", (e) => {
+  const v = e.target.closest("button")?.dataset.v; if (!v) return;
+  S[seg.dataset.mode] = v; writeHash(); renderControls();
+  if (S.stats) renderAll(S.stats);
+}));
+
 // ---------- load
 let loadSeq = 0;
 async function load() {
@@ -577,7 +838,7 @@ async function load() {
     const st = await api("/api/stats?" + qs);
     if (seq !== loadSeq) return;
     S.stats = st; $("#error").classList.add("hidden");
-    renderKpis(st); renderSeries(st); renderHours(st); renderCategories(st); renderApps(st); renderTitles(st);
+    renderAll(st);
     if (!S.tlDay || S.tlDay < S.from || S.tlDay > S.to) S.tlDay = S.to;
     await loadTimeline();
   } catch (e) {
@@ -603,7 +864,7 @@ async function init() {
 let rz;
 addEventListener("resize", () => {
   clearTimeout(rz);
-  rz = setTimeout(() => { if (S.stats) { renderSeries(S.stats); renderHours(S.stats); } if (S.tl) renderTimeline(); }, 150);
+  rz = setTimeout(() => { if (S.stats) renderAll(S.stats); if (S.tl) renderTimeline(); }, 150);
 });
 init().catch((e) => { $("#error").textContent = "Gagal memuat: " + e.message; $("#error").classList.remove("hidden"); });
 </script>
