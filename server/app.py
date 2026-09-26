@@ -19,7 +19,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 import auth
@@ -575,6 +575,21 @@ def _report_loop():
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- anti-indeks search engine
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    return "User-agent: *\nDisallow: /\n"
+
+
+@app.middleware("http")
+async def no_index(request: Request, call_next):
+    # robots.txt hanya melarang crawl; header ini mencegah URL yang ditautkan dari luar ikut terindeks
+    res = await call_next(request)
+    res.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return res
 
 
 @app.get("/")
