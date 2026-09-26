@@ -4,6 +4,8 @@ Agent di tiap laptop mengirim event window yang sudah difilter "tidak AFK"
 per potongan waktu (replace semantics), server menyimpan ke SQLite dan
 menyajikan statistik gabungan.
 """
+import base64
+import hashlib
 import json
 import os
 import re
@@ -584,11 +586,53 @@ def robots():
     return "User-agent: *\nDisallow: /\n"
 
 
+# ---------------------------------------------------------------- security headers
+
+def _script_hashes(*files: str) -> str:
+    """Hash sha256 tiap <script> inline → CSP tanpa 'unsafe-inline' untuk script."""
+    out = []
+    for f in files:
+        # byte apa adanya (tanpa konversi CRLF) — harus identik dengan yang di-hash browser
+        html = (BASE_DIR / "static" / f).read_bytes().decode("utf-8")
+        for body in re.findall(r"<script>(.*?)</script>", html, re.S):
+            digest = hashlib.sha256(body.encode()).digest()
+            out.append(f"'sha256-{base64.b64encode(digest).decode()}'")
+    return " ".join(out)
+
+
+CSP_HTML = (
+    "default-src 'none'; "
+    f"script-src {_script_hashes('index.html', 'login.html')}; "
+    "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src https://fonts.gstatic.com; "
+    "img-src 'self' data:; connect-src 'self'; "
+    "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+)
+CSP_OTHER = "default-src 'none'; frame-ancestors 'none'"
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
 @app.middleware("http")
-async def no_index(request: Request, call_next):
-    # robots.txt hanya melarang crawl; header ini mencegah URL yang ditautkan dari luar ikut terindeks
+async def security_headers(request: Request, call_next):
+    # Tolak POST lintas situs (CSRF) untuk endpoint ber-cookie. Agent (Bearer) tidak mengirim Origin.
+    if request.method not in SAFE_METHODS and request.url.path != "/api/ingest":
+        origin = request.headers.get("origin")
+        if origin and origin.split("://", 1)[-1] != request.headers.get("host", ""):
+            return JSONResponse({"detail": "Origin tidak diizinkan"}, status_code=403)
     res = await call_next(request)
-    res.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    is_html = res.headers.get("content-type", "").startswith("text/html")
+    h = res.headers
+    h["Content-Security-Policy"] = CSP_HTML if is_html else CSP_OTHER
+    h["X-Content-Type-Options"] = "nosniff"
+    h["X-Frame-Options"] = "DENY"
+    h["Referrer-Policy"] = "same-origin"
+    h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    h["Cross-Origin-Opener-Policy"] = "same-origin"
+    h["Strict-Transport-Security"] = "max-age=31536000"
+    # robots.txt hanya melarang crawl; header ini mencegah URL yang ditautkan dari luar ikut terindeks
+    h["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    if request.url.path.startswith("/api/"):
+        h["Cache-Control"] = "no-store"
     return res
 
 

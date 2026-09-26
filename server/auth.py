@@ -72,10 +72,22 @@ class LoginLimiter:
         self.global_fails: deque = deque()
         self.global_locked_until = 0.0
 
+    def _prune(self, now: float):
+        # batasi memori: buang entri basi (IP yang sudah tidak terkunci & tidak ada kegagalan baru)
+        if len(self.fails) + len(self.locked_until) < 5000:
+            return
+        for ip in [k for k, q in self.fails.items() if not q or q[-1] < now - IP_WINDOW]:
+            del self.fails[ip]
+        for ip in [k for k, t in self.locked_until.items() if t < now]:
+            self.locked_until.pop(ip, None)
+            if ip not in self.fails:
+                self.lock_count.pop(ip, None)
+
     def check(self, ip: str) -> tuple[bool, int]:
         """(boleh_mencoba, detik_tunggu)."""
         now = time.time()
         with self.lock:
+            self._prune(now)
             wait = max(self.locked_until.get(ip, 0), self.global_locked_until) - now
             return (wait <= 0, max(0, int(wait + 0.999)))
 

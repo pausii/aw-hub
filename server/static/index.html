@@ -968,9 +968,9 @@ $("#reportPreviewBtn").addEventListener("click", async () => {
       ? `Terkirim otomatis tiap ${["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"][sched.weekday]} ${String(sched.hour).padStart(2, "0")}:00 WIB` +
         (r.last_sent_week ? ` · terakhir: minggu ${r.last_sent_week}` : "")
       : "Telegram belum dikonfigurasi — ini hanya pratinjau.";
-    // tampilkan sebagai teks: tag HTML Telegram dilepas
-    const tmp = document.createElement("div"); tmp.innerHTML = r.text.replace(/<br>/g, "\n");
-    box.textContent = `${head}\n${"─".repeat(40)}\n${tmp.textContent}`;
+    // DOMParser menghasilkan dokumen inert: tag/atribut di teks laporan tidak pernah dieksekusi
+    const plain = new DOMParser().parseFromString(r.text, "text/html").body.textContent;
+    box.textContent = `${head}\n${"─".repeat(40)}\n${plain}`;
   } catch (e) { box.textContent = "Gagal memuat pratinjau: " + e.message; }
 });
 $("#reportSendBtn").addEventListener("click", async () => {
@@ -1005,7 +1005,7 @@ async function load() {
 }
 async function loadTimeline() {
   writeHash();
-  S.tl = await api("/api/timeline?day=" + S.tlDay);
+  S.tl = await api("/api/timeline?day=" + encodeURIComponent(S.tlDay));
   renderTimeline();
 }
 

@@ -325,7 +325,8 @@ form.addEventListener("submit", async (e) => {
     if (r.ok) {
       btn.textContent = "Berhasil ✓";
       const next = new URLSearchParams(location.search).get("next");
-      location.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+      // hanya dashboard sendiri: "/" atau "/#..." (fragmen tak bisa pindah situs) → cegah open redirect
+      location.replace(next && /^\/(#.*)?$/.test(next) ? next : "/");
       return;
     }
     $("#password").value = ""; $("#password").setAttribute("aria-invalid", "true"); $("#password").focus();
