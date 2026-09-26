@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-OUT = Path(__file__).resolve().parent.parent / "server" / "static" / "icons"
+OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "icons"
 BG, TRACK, OUTER, INNER, DOT = "#0f1216", "#232a33", "#3987e5", "#9ec5f4", "#ffffff"
 SS = 4  # supersampling agar tepi halus
 

@@ -783,22 +783,35 @@ def robots():
 
 # ---------------------------------------------------------------- security headers
 
+# Frontend = hasil build Astro (web/dist). Di image Docker disalin ke server/static; saat dev lokal
+# dipakai langsung dari ../web/dist. AW_HUB_STATIC bisa menimpa keduanya.
+STATIC = Path(os.environ.get("AW_HUB_STATIC") or (
+    BASE_DIR / "static" if (BASE_DIR / "static" / "index.html").exists() else BASE_DIR.parent / "web" / "dist"))
+if not (STATIC / "index.html").exists():
+    raise SystemExit(f"Frontend belum di-build: {STATIC}/index.html tidak ada (cd web && npm run build).")
+
+SCRIPT_TAG = re.compile(r"<script(?P<attrs>[^>]*)>(?P<body>.*?)</script>", re.S)
+
+
 def _script_hashes(*files: str) -> str:
-    """Hash sha256 tiap <script> inline → CSP tanpa 'unsafe-inline' untuk script."""
-    out = []
+    """Hash sha256 tiap <script> inline (tanpa src) → CSP tanpa 'unsafe-inline' untuk script.
+    Script bundel Astro (<script type="module" src="/_astro/...">) diizinkan lewat 'self'."""
+    out = set()
     for f in files:
         # byte apa adanya (tanpa konversi CRLF) — harus identik dengan yang di-hash browser
-        html = (BASE_DIR / "static" / f).read_bytes().decode("utf-8")
-        for body in re.findall(r"<script>(.*?)</script>", html, re.S):
-            digest = hashlib.sha256(body.encode()).digest()
-            out.append(f"'sha256-{base64.b64encode(digest).decode()}'")
-    return " ".join(out)
+        html = (STATIC / f).read_bytes().decode("utf-8")
+        for m in SCRIPT_TAG.finditer(html):
+            if "src=" in m.group("attrs"):
+                continue
+            digest = hashlib.sha256(m.group("body").encode()).digest()
+            out.add(f"'sha256-{base64.b64encode(digest).decode()}'")
+    return " ".join(sorted(out))
 
 
 CSP_HTML = (
     "default-src 'none'; "
-    f"script-src {_script_hashes('index.html', 'login.html')}; "
-    "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+    f"script-src 'self' {_script_hashes('index.html', 'login.html', 'offline.html')}; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src https://fonts.gstatic.com; "
     "img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
     "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
@@ -837,19 +850,18 @@ async def security_headers(request: Request, call_next):
 def index(request: Request):
     if not current_user(request):
         return RedirectResponse("/login", status_code=303)
-    return FileResponse(BASE_DIR / "static" / "index.html", headers={"Cache-Control": "no-cache"})
+    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/login")
 def login_page(request: Request):
     if current_user(request):
         return RedirectResponse("/", status_code=303)
-    return FileResponse(BASE_DIR / "static" / "login.html", headers={"Cache-Control": "no-cache"})
+    return FileResponse(STATIC / "login.html", headers={"Cache-Control": "no-cache"})
 
 
-# ---------------------------------------------------------------- aset publik (favicon, PWA)
+# ---------------------------------------------------------------- aset publik (favicon, PWA, bundel Astro)
 # Hanya file statis tanpa data pengguna, jadi boleh diakses tanpa login.
-STATIC = BASE_DIR / "static"
 PUBLIC_FILES = {
     "/favicon.ico": ("icons/favicon.ico", "image/x-icon", "public, max-age=604800"),
     "/favicon.svg": ("icons/favicon.svg", "image/svg+xml", "public, max-age=604800"),
@@ -876,6 +888,22 @@ def icon(name: str):
     if not ICON_NAME.match(name) or not (STATIC / "icons" / name).is_file():
         raise HTTPException(404)
     return FileResponse(STATIC / "icons" / name, headers={"Cache-Control": "public, max-age=604800"})
+
+
+ASSET_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(js|css|woff2?|png|svg)$")
+# MIME eksplisit: tebakan mimetypes bisa salah (mis. registry Windows) dan nosniff akan memblokirnya
+ASSET_TYPES = {"js": "text/javascript", "css": "text/css", "woff": "font/woff", "woff2": "font/woff2",
+               "png": "image/png", "svg": "image/svg+xml"}
+
+
+@app.get("/_astro/{name}")
+def astro_asset(name: str):
+    # nama file bundel Astro mengandung hash konten → aman di-cache selamanya
+    m = ASSET_NAME.match(name)
+    if ".." in name or not m or not (STATIC / "_astro" / name).is_file():
+        raise HTTPException(404)
+    return FileResponse(STATIC / "_astro" / name, media_type=ASSET_TYPES[m.group(1)],
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 init_db()

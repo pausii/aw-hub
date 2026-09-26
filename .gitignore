@@ -4,3 +4,7 @@ __pycache__/
 agent/config.json
 agent/state.json
 agent/*.log*
+web/node_modules/
+web/dist/
+web/.astro/
+server/static/

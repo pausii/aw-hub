@@ -1,6 +1,9 @@
 services:
   app:
-    build: ./server
+    # context = root repo: Dockerfile membangun web/ (Astro) lalu menyalin hasilnya ke image Python
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     restart: unless-stopped
     env_file: .env
     volumes:

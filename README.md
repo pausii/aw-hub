@@ -171,6 +171,19 @@ Dashboard dan halaman login tersedia dalam bahasa Inggris (default) dan Indonesi
 Pilihan bahasa disimpan per browser. Nama kategori memakai `name_en` di `config/categories.json` saat bahasa Inggris aktif.
 Bahasa ringkasan Telegram diatur terpisah lewat `AW_HUB_REPORT_LANG` (`en` | `id`).
 
+## 10. Pengembangan frontend
+
+Frontend ada di `web/` (Astro + TypeScript + Tailwind CSS). Hasil build-nya berupa file statis yang disajikan FastAPI,
+jadi tidak ada server Node di production (image Docker membangunnya di tahap terpisah).
+
+```bash
+cd web
+npm ci
+npm run dev        # http://localhost:4321, /api di-proxy ke FastAPI lokal di :8765
+npm run typecheck  # tsc --noEmit (strict)
+npm run build      # → web/dist (dipakai server lokal otomatis)
+```
+
 ## Catatan keamanan
 
 - Dashboard terbuka ke internet dan dilindungi login dengan batas percobaan. Pakai password panjang.

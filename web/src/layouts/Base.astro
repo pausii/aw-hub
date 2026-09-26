@@ -1,0 +1,37 @@
+---
+// Kerangka <head> bersama: SEO off, favicon/PWA, dan pemasangan tema+bahasa SEBELUM render (anti-kedip).
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  lightThemeColor?: string;
+  bodyClass?: string;
+}
+const { title, lightThemeColor = "#f9f9f7", bodyClass } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content={lightThemeColor} media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+    <script is:inline>
+      try {
+        const t = localStorage.getItem("awhub-theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        if (localStorage.getItem("awhub-lang") === "id") document.documentElement.lang = "id";
+      } catch (e) {}
+    </script>
+    <slot name="head" />
+  </head>
+  <body class={bodyClass}>
+    <slot />
+  </body>
+</html>

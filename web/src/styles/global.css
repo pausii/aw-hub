@@ -1,0 +1,261 @@
+@import "tailwindcss";
+
+/* ============================================================ token warna
+   Setiap token WAJIB punya nilai terang, blok prefers-color-scheme gelap, dan [data-theme="dark"].
+   Perangkat: satu hue (biru), dibedakan terang-gelap. Kategori: slot palet tetap s1–s8.
+   Heatmap: satu hue (biru), makin gelap = makin aktif; q0 = tidak ada data. */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11, 11, 11, 0.1); --wash: rgba(11, 11, 11, 0.05);
+  --good: #006300; --bad: #b3261e;
+  --dev-1: #256abf; --dev-2: #86b6ef; --dev-3: #104281; --dev-4: #b7d3f6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --s-none: #b5b3ab;
+  --q0: #f0efec; --q1: #cde2fb; --q2: #9ec5f4; --q3: #5598e7; --q4: #256abf; --q5: #104281;
+  /* halaman login */
+  --login-page: #f4f3ef; --accent: #2a78d6; --accent-ink: #ffffff; --focus: rgba(42, 120, 214, 0.35);
+  --ring-kantor: #256abf; --ring-pribadi: #86b6ef; --dial: #ecebe6; --glow: rgba(42, 120, 214, 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --wash: rgba(255, 255, 255, 0.06);
+    --good: #0ca30c; --bad: #e66767;
+    --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+    --q0: #232322; --q1: #173a66; --q2: #1c5cab; --q3: #2a78d6; --q4: #5598e7; --q5: #9ec5f4;
+    --login-page: #0d0d0d; --accent: #3987e5; --accent-ink: #ffffff; --focus: rgba(57, 135, 229, 0.45);
+    --ring-kantor: #3987e5; --ring-pribadi: #9ec5f4; --dial: #202020; --glow: rgba(57, 135, 229, 0.14);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.1); --wash: rgba(255, 255, 255, 0.06);
+  --good: #0ca30c; --bad: #e66767;
+  --dev-1: #3987e5; --dev-2: #9ec5f4; --dev-3: #1c5cab; --dev-4: #cde2fb;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-none: #5f5e59;
+  --q0: #232322; --q1: #173a66; --q2: #1c5cab; --q3: #2a78d6; --q4: #5598e7; --q5: #9ec5f4;
+  --login-page: #0d0d0d; --accent: #3987e5; --accent-ink: #ffffff; --focus: rgba(57, 135, 229, 0.45);
+  --ring-kantor: #3987e5; --ring-pribadi: #9ec5f4; --dial: #202020; --glow: rgba(57, 135, 229, 0.14);
+}
+
+/* token → utilitas Tailwind: bg-surface, text-ink, border-line, dst. (ikut berganti saat tema berganti) */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+  --color-line: var(--border);
+  --color-wash: var(--wash);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-login-page: var(--login-page);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+}
+/* breakpoint mengikuti desain lama (desktop-first 900px / 560px) */
+@theme {
+  --breakpoint-sm: 35.0625rem;   /* 561px */
+  --breakpoint-md: 56.3125rem;   /* 901px */
+}
+
+@layer base {
+  body { @apply bg-page text-ink font-sans; font-size: 14px; line-height: 1.45; }
+  svg { overflow: visible; }
+  /* teks chart dashboard saja — jangan kena SVG halaman login (jam memakai atribut font-size/fill sendiri) */
+  .dash svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  input[type="date"] {
+    @apply text-ink bg-surface border border-line rounded-md;
+    font-size: 13px; padding: 4px 6px;
+  }
+}
+
+/* ============================================================ komponen
+   Dipakai markup .astro maupun HTML yang dibuat dari TypeScript (src/lib/render.ts, charts.ts, editor.ts). */
+@layer components {
+  .card { @apply bg-surface border border-line min-w-0; border-radius: 10px; padding: 14px 16px; }
+  .card-h { @apply flex flex-wrap items-baseline gap-2 mb-2.5; }
+  .card-h h2 { font-size: 14px; font-weight: 600; }
+  .card-h .sub { font-size: 12px; }
+  .card-h .right { @apply ml-0 sm:ml-auto flex items-center gap-2; }
+  .sub { @apply text-ink-2; font-size: 13px; }
+  .spacer { flex: 1; }
+
+  .icon-btn {
+    @apply inline-flex items-center gap-1.5 text-ink-2 bg-surface border border-line rounded-full cursor-pointer;
+    font-size: 12px; padding: 4px 11px 4px 9px;
+  }
+  .icon-btn:hover { @apply bg-wash text-ink; }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  .seg { @apply inline-flex flex-wrap overflow-hidden border border-line rounded-lg; }
+  .seg button { @apply text-ink-2 cursor-pointer; font-size: 13px; padding: 5px 10px; }
+  .seg button + button { @apply border-l border-line; }
+  .seg button:hover { @apply bg-wash; }
+  .seg button[aria-pressed="true"] { @apply bg-ink text-surface; }
+  .seg.sm button { font-size: 12px; padding: 3px 9px; }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 text-ink border border-line rounded-full cursor-pointer;
+    font-size: 13px; padding: 4px 10px;
+  }
+  .chip[aria-pressed="false"] { @apply text-muted; }
+  .chip[aria-pressed="false"] .sw { opacity: 0.25; }
+  .sw { @apply inline-block flex-none; width: 10px; height: 10px; border-radius: 3px; }
+
+  .btn { @apply text-ink border border-line rounded-md cursor-pointer; font-size: 13px; padding: 3px 9px; }
+  .btn:hover { @apply bg-wash; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.primary { @apply bg-ink text-surface border-ink; }
+  .link { @apply text-ink-2 underline cursor-pointer; font-size: 12px; }
+
+  .search { @apply relative inline-flex items-center; }
+  .search svg { @apply absolute text-muted pointer-events-none; left: 9px; width: 14px; height: 14px; }
+  .search input {
+    @apply text-ink bg-surface border border-line rounded-lg;
+    font-size: 13px; width: 220px; max-width: 60vw; padding: 5px 10px 5px 29px;
+  }
+  .search input:focus { outline: 2px solid var(--dev-2); outline-offset: 0; }
+  .fchip {
+    @apply inline-flex items-center gap-1.5 text-ink bg-wash border border-line rounded-full;
+    font-size: 12px; padding: 3px 4px 3px 10px;
+  }
+  .fchip b { font-weight: 600; }
+  .fchip button { @apply text-ink-2 rounded-full cursor-pointer; width: 20px; height: 20px; line-height: 1; font-size: 14px; }
+  .fchip button:hover { @apply text-ink; background: var(--border); }
+
+  /* KPI */
+  .kpi .label { @apply text-ink-2; font-size: 13px; }
+  .kpi .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .kpi .delta { @apply text-ink-2; font-size: 13px; margin-top: 4px; }
+  .kpi .delta .up, .kpi .delta .down { @apply text-ink; font-weight: 600; }
+  .kpi.hero { @apply grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
+  .kpi.hero .label, .kpi.hero .delta { grid-column: 1 / -1; }
+  .kpi.hero .value { font-size: 40px; line-height: 1.1; white-space: nowrap; }
+  .kpi.hero .value { @variant sm { font-size: 48px; } }
+  .kpi.hero .spark { @apply hidden md:block; align-self: end; margin-bottom: 8px; }
+  .split { @apply flex flex-col gap-1 text-ink-2; margin-top: 6px; font-size: 13px; }
+  .split span { @apply inline-flex items-center gap-1.5; }
+  .split b { @apply text-ink ml-auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .legend { @apply flex flex-wrap text-ink-2 mt-2; gap: 4px 14px; font-size: 12px; }
+  .legend span { @apply inline-flex items-center gap-1.5; }
+
+  /* daftar batang (kategori) */
+  .bars { @apply flex flex-col gap-2; }
+  .bar-row { @apply grid items-center; grid-template-columns: minmax(80px, 110px) 1fr 96px; gap: 10px; font-size: 13px; }
+  .bar-row { @variant sm { grid-template-columns: minmax(90px, 150px) 1fr 104px; } }
+  .bar-row .name { @apply flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-ellipsis; }
+  .bar-row .track { height: 12px; }
+  .bar-row .fill { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .bar-row .num { @apply text-ink-2 text-right whitespace-nowrap; font-variant-numeric: tabular-nums; }
+
+  /* tabel */
+  .tbl table, table.tbl { @apply w-full; border-collapse: collapse; font-size: 13px; }
+  .tbl th { @apply text-left text-muted border-b border-grid; font-weight: 500; font-size: 12px; padding: 4px 6px; }
+  .tbl td { @apply border-b border-grid align-top; padding: 6px; }
+  .tbl td.n, .tbl th.n { @apply text-right whitespace-nowrap; font-variant-numeric: tabular-nums; }
+  .tbl td .t { @apply overflow-hidden text-ellipsis break-words; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .tbl td .m { @apply text-muted; font-size: 12px; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .inbar { height: 4px; border-radius: 2px; background: var(--ink-2); opacity: 0.35; margin-top: 4px; }
+  .clickable { cursor: pointer; }
+  tr.clickable:hover td, .bar-row.clickable:hover { @apply bg-wash; }
+  tr.is-active td { @apply bg-wash; }
+  .bar-row.is-active .name { font-weight: 600; }
+
+  /* kerja vs pribadi & ritme */
+  .wk-tile { @apply border border-line rounded-lg; padding: 10px 12px; }
+  .wk-tile .label { @apply flex items-center gap-1.5 text-ink-2; font-size: 12px; }
+  .wk-tile .value { font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .wk-tile .note { @apply text-muted; font-size: 12px; }
+  .split-bar { @apply flex overflow-hidden gap-0.5; height: 10px; border-radius: 3px; margin: 4px 0 2px; }
+  .split-bar i { @apply block h-full; }
+
+  .empty { @apply text-muted text-center; font-size: 13px; padding: 24px 0; }
+
+  /* tooltip */
+  #tip {
+    @apply fixed pointer-events-none bg-surface text-ink border border-line rounded-lg;
+    z-index: 20; max-width: 340px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    padding: 8px 10px; font-size: 12px; opacity: 0; transition: opacity 0.08s;
+  }
+  #tip .tt { font-weight: 600; margin-bottom: 4px; }
+  #tip .row { @apply flex items-center gap-3; }
+  #tip .row b { @apply ml-auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #tip .mt { @apply text-ink-2 break-words; }
+
+  /* editor kategori */
+  .ed-badge { @apply text-ink-2 border border-line rounded-full; font-size: 11px; padding: 2px 8px; }
+  .ed-help { @apply text-muted; font-size: 12px; margin: 0 0 12px; }
+  .ed-sec { margin: 22px 0 10px; font-size: 13px; font-weight: 600; }
+  .ed-rule {
+    @apply grid items-center border border-line mb-2;
+    grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; border-radius: 10px; padding: 10px 12px;
+  }
+  .ed-rule { @variant sm { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto auto; } }
+  .ed-rule textarea { grid-column: 1 / -1; }
+  .ed-rule textarea { @variant sm { grid-column: 2 / -1; } }
+  .ed-rule .ord { @apply flex flex-col gap-0.5; grid-row: span 2; }
+  .ed-rule .ord button, .ed-x { @apply text-ink-2 border border-line rounded-md cursor-pointer; font-size: 11px; padding: 1px 6px; }
+  .ed-x:hover, .ed-rule .ord button:hover { @apply bg-wash text-ink; }
+  .ed-rule .ord button:disabled { opacity: 0.4; cursor: default; }
+  .ed-rule input, .ed-rule select, .ed-rule textarea, .ed-work select {
+    @apply text-ink bg-page border border-line rounded-md min-w-0 w-full;
+    font-size: 13px; padding: 5px 8px;
+  }
+  .ed-rule textarea { font: 12px/1.4 ui-monospace, Consolas, monospace; min-height: 38px; resize: vertical; }
+  .ed-slots { @apply flex gap-1; }
+  .ed-slots label { @apply block relative cursor-pointer; width: 18px; height: 18px; border-radius: 5px; }
+  .ed-slots input { @apply absolute opacity-0; width: 1px; height: 1px; }
+  .ed-slots input:checked + i { @apply absolute; inset: -3px; border: 2px solid var(--ink); border-radius: 7px; }
+  .ed-slots input:focus-visible + i { @apply absolute; inset: -3px; border: 2px dashed var(--ink); border-radius: 7px; }
+  .ed-work { @apply grid items-center; grid-template-columns: minmax(0, 1fr); gap: 10px 14px; font-size: 13px; }
+  .ed-work { @variant sm { grid-template-columns: 140px minmax(0, 1fr); } }
+  .ed-checks { @apply flex flex-wrap gap-1.5; }
+  .ed-checks label { @apply inline-flex items-center border border-line rounded-full cursor-pointer; gap: 5px; padding: 3px 10px; font-size: 12px; }
+  .ed-checks label:has(input:checked) { @apply bg-ink text-surface border-ink; }
+  .ed-test { @apply grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2.5; }
+  .ed-test select {
+    @apply text-ink bg-page border border-line rounded-md;
+    font-size: 12px; padding: 2px 4px; max-width: 130px;
+  }
+  dialog#catDialog {
+    @apply bg-surface text-ink border border-line p-0 m-auto;
+    width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+    border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+  dialog#catDialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+
+  #reportPreview {
+    @apply bg-wash rounded-lg overflow-auto whitespace-pre-wrap mt-3;
+    font: 12px/1.5 ui-monospace, Consolas, monospace; padding: 12px; max-height: 420px;
+  }
+
+  /* login: busur jam dianimasikan dari login.ts; spinner tombol */
+  .arc { fill: none; stroke-linecap: butt; }
+  .spin {
+    width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  /* tampil/sembunyi diatur di sini (bukan utilitas hidden, yang selalu menang atas layer components) */
+  .msg { display: none; }
+  .msg.show { display: flex; }
+  .dots i { width: 18px; height: 4px; border-radius: 2px; background: var(--grid); }
+  .dots i.on { background: var(--bad); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,155 @@
+---
+// Dashboard. Isi kartu dirender di klien oleh src/lib/dashboard.ts (data dari /api, butuh login).
+import Base from "../layouts/Base.astro";
+---
+<Base title="AW Hub" bodyClass="dash">
+  <div class="mx-auto max-w-[1200px] px-4 pt-5 pb-12">
+    <header class="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+      <h1 class="m-0 text-xl font-[650]">AW Hub</h1>
+      <span class="sub" id="rangeLabel"></span>
+      <div class="ml-auto flex flex-wrap gap-3 text-xs text-ink-2 [&_b]:font-semibold [&_b]:text-ink" id="sync"></div>
+      <div class="flex gap-1.5">
+        <button class="icon-btn" id="langBtn" type="button" data-i18n-title="lang.title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langLabel"></span>
+        </button>
+        <button class="icon-btn" id="themeBtn" type="button" data-i18n-aria="theme.title"></button>
+        <button class="icon-btn" id="logoutBtn" type="button" data-i18n-title="logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span data-i18n="logout"></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="sticky top-0 z-[5] mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-line bg-surface px-3 py-2.5"
+         role="toolbar" data-i18n-aria="filter">
+      <div class="seg" id="presets"></div>
+      <div class="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
+        <input type="date" id="from" data-i18n-aria="fromDate" /> –
+        <input type="date" id="to" data-i18n-aria="toDate" />
+      </div>
+      <div class="seg" id="group" data-i18n-aria="groupBy"></div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="search" maxlength="200" data-i18n-ph="search.ph" data-i18n-aria="search.ph" />
+      </label>
+      <span id="filterChip"></span>
+      <div class="spacer"></div>
+      <div id="devChips" class="flex flex-wrap gap-1.5"></div>
+    </div>
+
+    <div id="error" class="hidden p-3 text-bad"></div>
+
+    <div class="grid grid-cols-12 gap-4">
+      <div class="col-span-12 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]" id="kpis"></div>
+
+      <section class="card col-span-12">
+        <div class="card-h">
+          <h2 data-i18n="active.title"></h2><span class="sub" id="seriesSub"></span>
+          <div class="right">
+            <div class="seg sm" data-mode="seriesMode" data-i18n-aria="chart.form">
+              <button data-v="line" data-i18n="line"></button><button data-v="bar" data-i18n="bar"></button>
+            </div>
+            <button class="link" id="seriesToggle" data-i18n="viewTable"></button>
+          </div>
+        </div>
+        <div id="seriesChart"></div>
+        <div id="seriesTable" class="tbl hidden"></div>
+        <div class="legend" id="seriesLegend"></div>
+      </section>
+
+      <section class="card col-span-12">
+        <div class="card-h">
+          <h2 data-i18n="timeline.title"></h2><span class="sub" id="tlSub"></span>
+          <div class="right">
+            <button class="btn" id="tlPrev" data-i18n-aria="prevDay">‹</button>
+            <input type="date" id="tlDay" data-i18n-aria="tlDate" />
+            <button class="btn" id="tlNext" data-i18n-aria="nextDay">›</button>
+          </div>
+        </div>
+        <div id="timeline"></div>
+        <div class="legend" id="catLegend"></div>
+      </section>
+
+      <section class="card col-span-12">
+        <div class="card-h"><h2 data-i18n="rh.title"></h2><span class="sub" data-i18n="rh.sub"></span></div>
+        <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5" id="rhTiles"></div>
+        <div id="rhChart"></div>
+      </section>
+
+      <section class="card col-span-12 md:col-span-6">
+        <div class="card-h">
+          <h2 data-i18n="cat.title"></h2><span class="sub" data-i18n="cat.sub"></span>
+          <div class="right"><button class="btn" id="catEditBtn" type="button" data-i18n="cat.edit"></button></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-5">
+          <div id="catDonut"></div>
+          <div id="categories" class="bars min-w-[220px] flex-1"></div>
+        </div>
+      </section>
+
+      <section class="card col-span-12 md:col-span-6">
+        <div class="card-h">
+          <h2 data-i18n="hours.title"></h2><span class="sub" id="hoursSub"></span>
+          <div class="right">
+            <div class="seg sm" data-mode="hourMode" data-i18n-aria="chart.form">
+              <button data-v="heat" data-i18n="heatmap"></button><button data-v="bar" data-i18n="bar"></button>
+            </div>
+          </div>
+        </div>
+        <div id="hours"></div>
+        <div class="legend" id="hoursLegend"></div>
+      </section>
+
+      <section class="card col-span-12">
+        <div class="card-h"><h2 data-i18n="trend.title"></h2><span class="sub" id="catTrendSub"></span></div>
+        <div id="catTrend"></div>
+        <div class="legend" id="catTrendLegend"></div>
+      </section>
+
+      <section class="card col-span-12">
+        <div class="card-h"><h2 data-i18n="work.title"></h2><span class="sub" id="workSub"></span></div>
+        <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4" id="workTiles"></div>
+        <div class="grid grid-cols-1 items-start gap-5 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div><div id="workChart"></div><div class="legend" id="workLegend"></div></div>
+          <div id="workMatrix" class="tbl"></div>
+        </div>
+        <div class="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-grid pt-3 text-xs text-muted">
+          <span id="workCfg"></span><span class="spacer"></span>
+          <button class="btn" id="reportPreviewBtn" type="button" data-i18n="report.preview"></button>
+          <button class="btn" id="reportSendBtn" type="button" data-i18n="report.send"></button>
+        </div>
+        <div id="reportPreview" class="hidden"></div>
+      </section>
+
+      <section class="card col-span-12 md:col-span-6">
+        <div class="card-h"><h2 data-i18n="apps.title"></h2></div>
+        <div id="apps" class="tbl"></div>
+      </section>
+
+      <section class="card col-span-12 md:col-span-6">
+        <div class="card-h"><h2 data-i18n="titles.title"></h2></div>
+        <div id="titles" class="tbl"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="tip" role="tooltip"></div>
+
+  <dialog id="catDialog" aria-labelledby="edTitle">
+    <div class="flex items-center gap-2.5 border-b border-grid px-[18px] py-3.5">
+      <h2 id="edTitle" class="text-base font-semibold" data-i18n="ed.title"></h2><span class="ed-badge" id="edSource"></span>
+      <span class="flex-1"></span>
+      <button class="ed-x" type="button" id="edClose" data-i18n-aria="ed.close">✕</button>
+    </div>
+    <div class="tbl max-h-[calc(100vh-170px)] overflow-auto px-[18px] py-4" id="edBody"></div>
+    <div class="sticky bottom-0 flex items-center gap-2.5 border-t border-grid bg-surface px-[18px] py-3.5">
+      <button class="btn" type="button" id="edReset" data-i18n="ed.reset"></button>
+      <span class="text-[13px] text-bad" id="edErr" role="alert"></span><span class="flex-1"></span>
+      <button class="btn" type="button" id="edCancel" data-i18n="ed.cancel"></button>
+      <button class="btn primary" type="button" id="edSave" data-i18n="ed.save"></button>
+    </div>
+  </dialog>
+
+  <script>
+    import "../lib/dashboard";
+  </script>
+</Base>

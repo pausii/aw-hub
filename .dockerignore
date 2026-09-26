@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+data
+agent
+deploy
+**/__pycache__
+web/node_modules
+web/dist
+web/.astro

@@ -1,0 +1,13 @@
+---
+// Halaman offline (disajikan service worker saat jaringan putus). Tanpa script.
+import Base from "../layouts/Base.astro";
+---
+<Base title="Offline · AW Hub" bodyClass="grid min-h-screen place-items-center bg-login-page p-6 text-center text-[15px]">
+  <main>
+    <img src="/icons/icon-192.png" alt="" class="mx-auto size-[72px]" />
+    <h1 class="mt-4 mb-1.5 text-[22px] font-bold">You're offline</h1>
+    <p class="mb-1 text-ink-2">AW Hub needs a connection to load your data.</p>
+    <p class="mb-1 text-ink-2">Kamu sedang offline — AW Hub butuh koneksi untuk memuat data.</p>
+    <a href="/" class="mt-5 inline-block rounded-[10px] bg-accent px-5 py-2.5 font-semibold text-accent-ink no-underline">Try again · Coba lagi</a>
+  </main>
+</Base>

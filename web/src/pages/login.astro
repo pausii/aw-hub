@@ -1,0 +1,80 @@
+---
+// Halaman login: jam 24 jam dekoratif (kiri) + form (kanan). Logika di src/lib/login.ts.
+import Base from "../layouts/Base.astro";
+
+const eye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const inputCls =
+  "w-full rounded-xl border border-line bg-login-page px-3.5 py-[13px] text-[15px] text-ink outline-none transition " +
+  "focus:border-accent focus:bg-surface focus:shadow-[0_0_0_4px_var(--focus)] aria-invalid:border-bad";
+const topBtn =
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-[5px] pl-2.5 text-[13px] " +
+  "text-ink-2 hover:bg-wash hover:text-ink min-[861px]:bg-transparent [&_svg]:size-[15px]";
+---
+<Base title="Sign in · AW Hub" lightThemeColor="#f4f3ef"
+      bodyClass="grid min-h-screen grid-cols-1 bg-login-page text-[15px] leading-normal min-[861px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  </Fragment>
+
+  <section aria-hidden="true"
+           class="relative flex flex-col items-center justify-center overflow-hidden px-4 pt-[76px] pb-2 min-[861px]:px-8 min-[861px]:py-10
+                  bg-[radial-gradient(circle_at_50%_46%,var(--glow),transparent_62%)]">
+    <div class="absolute top-[18px] left-4 flex items-center gap-2.5 min-[861px]:top-7 min-[861px]:left-8">
+      <svg class="size-[26px]" viewBox="0 0 26 26"><circle cx="13" cy="13" r="10.5" fill="none" stroke="var(--ring-kantor)" stroke-width="3" stroke-dasharray="33 100" transform="rotate(-150 13 13)"/><circle cx="13" cy="13" r="10.5" fill="none" stroke="var(--ring-pribadi)" stroke-width="3" stroke-dasharray="18 100" transform="rotate(40 13 13)"/><circle cx="13" cy="13" r="2.2" fill="var(--ink)"/></svg>
+      <span class="font-display text-[17px] font-bold tracking-[-0.01em]">AW Hub</span>
+    </div>
+    <svg id="dial" viewBox="-260 -260 520 520"
+         class="aspect-square h-auto w-[min(300px,72vw)] flex-none min-[861px]:w-[min(520px,82vmin)] [&_text]:font-display"></svg>
+    <div class="mt-[18px] hidden max-w-[380px] text-center min-[861px]:block">
+      <h2 class="font-display mb-2 text-[26px] leading-[1.15] font-medium tracking-[-0.02em]" data-i18n="tagline"></h2>
+      <p class="text-sm text-ink-2">
+        <span class="mx-2 inline-flex items-center gap-1.5"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--ink-2)" stroke-width="3"/></svg><span data-i18n="ringOuter"></span></span>
+        <span class="mx-2 inline-flex items-center gap-1.5"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="var(--grid)" stroke-width="3"/><circle cx="8" cy="8" r="3" fill="none" stroke="var(--ink-2)" stroke-width="2"/></svg><span data-i18n="ringInner"></span></span>
+      </p>
+    </div>
+  </section>
+
+  <main class="relative flex flex-col items-center justify-center border-t border-line bg-surface px-4 pt-8 pb-10
+               min-[861px]:items-stretch min-[861px]:border-t-0 min-[861px]:border-l min-[861px]:px-[clamp(24px,6vw,88px)] min-[861px]:py-10">
+    <div class="fixed top-4 right-4 z-[2] flex gap-1.5 min-[861px]:absolute min-[861px]:top-[22px] min-[861px]:right-[22px]">
+      <button class={topBtn} id="langBtn" type="button" data-i18n-title="lang">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langLabel"></span>
+      </button>
+      <button class={topBtn} id="themeBtn" type="button" data-i18n-aria="theme"></button>
+    </div>
+
+    <form id="form" novalidate class="w-full max-w-[380px]">
+      <div class="mb-1.5 text-sm text-muted" id="greet"></div>
+      <h1 class="font-display mb-2 text-[32px] leading-[1.05] font-bold tracking-[-0.035em] min-[861px]:text-[40px]" data-i18n-html="heading"></h1>
+      <p class="mb-8 text-ink-2" data-i18n="lead"></p>
+      <div class="relative mb-[18px]">
+        <label for="username" class="mb-1.5 block text-[13px] font-medium text-ink-2" data-i18n="username"></label>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required class={inputCls} />
+      </div>
+      <div class="relative mb-[18px]">
+        <label for="password" class="mb-1.5 block text-[13px] font-medium text-ink-2" data-i18n="password"></label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required class={inputCls} />
+        <button type="button" id="peek" data-i18n-aria="showPassword" set:html={eye}
+                class="absolute right-2 bottom-2 grid cursor-pointer place-items-center rounded-lg p-1.5 text-muted hover:bg-wash hover:text-ink [&_svg]:size-[18px]"></button>
+      </div>
+      <button type="submit" id="submit" data-i18n="signIn"
+              class="mt-1.5 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent p-3.5 text-[15px] font-semibold
+                     text-accent-ink transition hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:grayscale-[.6]"></button>
+      <div id="msg" role="alert" aria-live="polite"
+           class="msg mt-4 items-start gap-2.5 rounded-xl border border-line bg-wash px-[13px] py-[11px] text-sm text-ink">
+        <svg class="mt-px size-[18px] flex-none text-bad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>
+        <div><div id="msgText"></div><div class="dots mt-1.5 flex gap-1" id="dots"></div></div>
+      </div>
+      <div class="mt-7 flex items-center gap-1.5 text-xs text-muted">
+        <svg class="size-[13px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span data-i18n="limitNote"></span>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    import "../lib/login";
+  </script>
+</Base>
