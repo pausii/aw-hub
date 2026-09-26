@@ -134,6 +134,14 @@ import Base from "../layouts/Base.astro";
 
   <div id="tip" role="tooltip"></div>
 
+  <div id="updateToast" role="status" aria-live="polite"
+       class="fixed bottom-4 left-1/2 z-30 hidden w-[min(440px,calc(100vw-32px))] -translate-x-1/2 items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink shadow-[0_8px_30px_rgba(0,0,0,.18)] [&:not(.hidden)]:flex">
+    <svg class="size-[18px] flex-none text-ink-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    <span class="flex-1" data-i18n="update.available"></span>
+    <button class="btn" type="button" id="updateLater" data-i18n="update.later"></button>
+    <button class="btn primary" type="button" id="updateReload" data-i18n="update.reload"></button>
+  </div>
+
   <dialog id="catDialog" aria-labelledby="edTitle">
     <div class="flex items-center gap-2.5 border-b border-grid px-[18px] py-3.5">
       <h2 id="edTitle" class="text-base font-semibold" data-i18n="ed.title"></h2><span class="ed-badge" id="edSource"></span>

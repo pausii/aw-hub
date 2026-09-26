@@ -1,6 +1,7 @@
 // Service worker AW Hub: network-first. Data (/api) dan halaman ber-login TIDAK di-cache,
 // hanya ikon & halaman offline — supaya data pribadi tidak tersimpan di perangkat.
-const CACHE = "awhub-v1";
+// __BUILD_ID__ diganti saat build (astro.config.mjs) → tiap deploy = cache baru, cache lama dihapus saat activate.
+const CACHE = "awhub-__BUILD_ID__";
 const OFFLINE = "/offline.html";
 const ASSETS = [OFFLINE, "/favicon.svg", "/icons/icon-192.png"];
 

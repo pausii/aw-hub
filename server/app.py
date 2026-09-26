@@ -875,6 +875,8 @@ PUBLIC_FILES = {
     "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json", "public, max-age=3600"),
     "/sw.js": ("sw.js", "text/javascript", "no-cache"),
     "/offline.html": ("offline.html", "text/html; charset=utf-8", "no-cache"),
+    # build ID frontend (dibuat saat npm run build); dicek dashboard untuk notifikasi "versi baru tersedia"
+    "/version.json": ("version.json", "application/json", "no-store"),
 }
 
 

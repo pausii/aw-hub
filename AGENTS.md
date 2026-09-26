@@ -100,7 +100,10 @@ Laptop (ActivityWatch lokal :5600)
 - Filter `app`/`category`/`q` berlaku untuk `/api/stats` dan `/api/timeline` (kelas `Filter` di `app.py`). `app` dan `q` difilter di SQL
   (LIKE dengan wildcard di-escape), sedangkan `category` difilter di Python lewat `classify()`.
 - Service worker **tidak boleh** meng-cache `/api/*` atau halaman ber-login, karena data pribadi tidak boleh tersimpan di perangkat.
-  Ganti nama `CACHE` di `sw.js` setiap kali daftar aset berubah.
+  Nama `CACHE` di `sw.js` otomatis = build ID (placeholder `__BUILD_ID__` diisi saat build), jangan diisi manual.
+- Update PWA: setiap `npm run build` membuat build ID (`__BUILD_ID__` di kode + `dist/version.json`, disajikan publik
+  `no-store`). `lib/update.ts` mencocokkannya berkala & saat tab aktif, lalu menampilkan notifikasi "versi baru"
+  (tanpa reload paksa). Build ID bisa ditetapkan lewat env `AW_HUB_BUILD_ID` (dipakai saat pengujian).
 - CSP: `script-src 'self'` (bundel `/_astro/*.js`) + hash sha256 tiap `<script>` inline di `index.html`, `login.html`,
   `offline.html`, dihitung saat server start dari hasil build. Jangan menambah inline event handler (`onclick=`), `eval`,
   atau script dari domain lain — semuanya akan diblokir. Astro bisa meng-inline script kecil; itu tetap aman karena di-hash.

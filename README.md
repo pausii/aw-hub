@@ -219,6 +219,11 @@ Days with less than 5 minutes of activity are ignored.
 In Chrome/Edge (desktop or Android) choose **Install app**. On iPhone, use **Share → Add to Home Screen**.
 The service worker only caches icons and the offline page. Data and dashboard pages are **never** cached,
 so personal data is not stored on the device.
+
+**Updates are automatic.** Every build gets a unique build ID. Opening or refreshing the app always loads the
+latest version, and an app that stays open (e.g. on a phone) checks for a new version every 10 minutes and when it
+becomes active again, then shows *"A new version of AW Hub is available"* with a **Reload** button. Nothing reloads
+on its own, and filters survive the reload because they live in the URL.
 Icons and the favicon are generated with `python deploy/make-icons.py` (requires Pillow).
 
 <p align="center">

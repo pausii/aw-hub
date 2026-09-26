@@ -213,6 +213,11 @@ Hari dengan aktivitas kurang dari 5 menit diabaikan.
 Di Chrome/Edge (desktop atau Android) pilih **Install app**. Di iPhone, pakai **Share → Add to Home Screen**.
 Service worker hanya menyimpan ikon dan halaman offline di cache. Data dan halaman dashboard **tidak** pernah
 di-cache, jadi data pribadi tidak tersimpan di perangkat.
+
+**Update berjalan otomatis.** Setiap build punya build ID unik. Membuka atau me-refresh aplikasi selalu memuat versi
+terbaru, dan aplikasi yang dibiarkan terbuka (mis. di HP) memeriksa versi baru setiap 10 menit dan saat kembali aktif,
+lalu menampilkan *"Versi baru AW Hub tersedia"* dengan tombol **Muat ulang**. Tidak ada reload paksa, dan filter tetap
+ada setelah reload karena tersimpan di URL.
 Ikon dan favicon dibuat dengan `python deploy/make-icons.py` (butuh Pillow).
 
 <p align="center">

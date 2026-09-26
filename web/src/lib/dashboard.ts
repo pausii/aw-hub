@@ -9,6 +9,7 @@ import { renderAll, renderControls, renderSync, renderTimeline } from "./render"
 import { S, hooks, visibleDevices, type FilterState } from "./state";
 import { applyTheme, getTheme, nextTheme } from "./theme";
 import { hideTip } from "./tooltip";
+import { initUpdateCheck } from "./update";
 import type { AppConfig, CatMeta, Device, ReportPreview, Stats, Timeline } from "./types";
 
 // ---------- state <-> URL hash (tampilan bisa di-bookmark)
@@ -222,6 +223,7 @@ $("#reportSendBtn").addEventListener("click", async () => {
 });
 
 initEditor();
+initUpdateCheck();
 
 // ---------- mulai
 async function init(): Promise<void> {
