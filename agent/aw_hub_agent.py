@@ -103,7 +103,8 @@ def main():
     ap.add_argument("--days", type=int, help="kirim ulang N hari terakhir")
     args = ap.parse_args()
 
-    cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
+    # utf-8-sig: toleran BOM (Out-File -Encoding utf8 di PowerShell 5.1 menambahkannya)
+    cfg = json.loads(Path(args.config).read_text(encoding="utf-8-sig"))
     state_path = Path(cfg.get("state_file") or HERE / "state.json")
     log_path = Path(cfg.get("log_file") or HERE / "aw-hub-agent.log")
     handlers = [RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=2, encoding="utf-8")]

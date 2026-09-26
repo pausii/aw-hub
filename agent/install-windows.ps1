@@ -34,7 +34,10 @@ if (-not (Test-Path $Config)) {
     device_name      = $DeviceName
     aw_url           = "http://localhost:5600"
     hide_title_regex = $HideTitleRegex
-  } | ConvertTo-Json | Out-File -Encoding utf8 $Config
+  } | ConvertTo-Json | ForEach-Object {
+    # tulis UTF-8 tanpa BOM (Out-File -Encoding utf8 di PowerShell 5.1 menambahkan BOM)
+    [IO.File]::WriteAllText($Config, $_, (New-Object System.Text.UTF8Encoding $false))
+  }
   Write-Host "config.json dibuat."
 }
 
